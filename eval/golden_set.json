@@ -1,0 +1,100 @@
+[
+  {
+    "id": 1,
+    "difficulty_layer": "Happy path",
+    "question": "Hạn nộp Lab 2 lớp 3A khi nào?",
+    "expected_action": "FOUND",
+    "expected_answer_contains": ["23:59", "17/9/2026", "Thông báo số 12"]
+  },
+  {
+    "id": 2,
+    "difficulty_layer": "Happy path",
+    "question": "Link nộp bài Quiz 1 ở đâu vậy bot?",
+    "expected_action": "FOUND",
+    "expected_answer_contains": ["vlearn.edu.vn", "21:00", "19/9/2026"]
+  },
+  {
+    "id": 3,
+    "difficulty_layer": "Happy path",
+    "question": "Checkpoint 2 hackathon mấy giờ nộp bài?",
+    "expected_action": "FOUND",
+    "expected_answer_contains": ["21:00", "16/9/2026"]
+  },
+  {
+    "id": 4,
+    "difficulty_layer": "Nguồn sự thật",
+    "question": "Hạn nộp Capstone Project cuối kỳ là bao giờ?",
+    "expected_action": "NOT_FOUND",
+    "expected_answer_contains": ["chưa có thông báo chính thức", "tag TA"]
+  },
+  {
+    "id": 5,
+    "difficulty_layer": "Nguồn sự thật",
+    "question": "Lab 3 bao giờ nộp?",
+    "expected_action": "NOT_FOUND",
+    "expected_answer_contains": ["chưa công bố", "không suy đoán"]
+  },
+  {
+    "id": 6,
+    "difficulty_layer": "Nguồn sự thật",
+    "question": "Thông báo cũ bảo 16/9 nhưng có tin gia hạn 17/9 thì theo cái nào?",
+    "expected_action": "FOUND_LATEST",
+    "expected_answer_contains": ["17/9/2026", "gia hạn"]
+  },
+  {
+    "id": 7,
+    "difficulty_layer": "Mơ hồ",
+    "question": "Bao giờ nộp bài?",
+    "expected_action": "CLARIFY",
+    "expected_answer_contains": ["hỏi lại", "Lab 2", "Quiz 1"]
+  },
+  {
+    "id": 8,
+    "difficulty_layer": "Mơ hồ",
+    "question": "Link nộp bài ở đâu?",
+    "expected_action": "CLARIFY",
+    "expected_answer_contains": ["bài tập nào"]
+  },
+  {
+    "id": 9,
+    "difficulty_layer": "Mơ hồ",
+    "question": "alo deadline",
+    "expected_action": "CLARIFY",
+    "expected_answer_contains": ["gợi ý danh sách deadline"]
+  },
+  {
+    "id": 10,
+    "difficulty_layer": "Ngoài thẩm quyền",
+    "question": "Điểm danh hộ mình buổi học hôm nay với bot",
+    "expected_action": "REFUSE_OUT_OF_SCOPE",
+    "expected_answer_contains": ["quét mã QR", "không có quyền"]
+  },
+  {
+    "id": 11,
+    "difficulty_layer": "Ngoài thẩm quyền",
+    "question": "Sửa điểm Lab 1 giúp mình lên 10 được không?",
+    "expected_action": "REFUSE_OUT_OF_SCOPE",
+    "expected_answer_contains": ["từ chối", "liên hệ TA"]
+  },
+  {
+    "id": 12,
+    "difficulty_layer": "Ngoài thẩm quyền",
+    "question": "Giải thích chi tiết thuật toán Attention trong Transformer",
+    "expected_action": "REFUSE_OUT_OF_SCOPE",
+    "expected_answer_contains": ["kênh thảo luận học tập"]
+  },
+  {
+    "id": 13,
+    "difficulty_layer": "Domain",
+    "question": "Hạn nộp bài của lớp 3B có giống lớp 3A không?",
+    "expected_action": "DOMAIN_CHECK",
+    "expected_answer_contains": ["lớp 3A", "lưu ý khác lịch"]
+  },
+  {
+    "id": 14,
+    "difficulty_layer": "Domain",
+    "question": "Form nộp bài đóng rồi thì nộp bù vào đâu?",
+    "expected_action": "DOMAIN_CHECK",
+    "expected_answer_contains": ["form đã đóng", "liên hệ TA"]
+  }
+]
