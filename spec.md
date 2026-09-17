@@ -140,12 +140,12 @@ flowchart TD
 * **Chiều chất lượng định nghĩa:**
   1. *Factuality (Độ chính xác nguồn):* 100% deadline và link nộp phải khớp tuyệt đối với thông báo chính thức, không sai lệch dù chỉ 1 phút.
   2. *Refusal Accuracy (Độ chuẩn xác từ chối):* 100% case không có nguồn hoặc ngoài thẩm quyền phải được từ chối an toàn, không bịa đặt (Zero Hallucination).
-* **Cấu trúc Golden Set ($\ge 20$ cases trong `eval/golden_set.json`):**
-  - 6 cases Happy path chuẩn.
-  - 5 cases Nguồn sự thật (có mâu thuẫn gia hạn / không có thông báo).
-  - 4 cases Mơ hồ / thiếu thông tin.
-  - 3 cases Ngoài thẩm quyền.
-  - 2 cases Đặc thù Domain lớp 3A/3B.
+* **Cấu trúc Golden Set (20 cases trong `eval/golden_set.json`):**
+  - 8 case thường theo happy path.
+  - 8 case khó, phủ đủ 4 lớp: nguồn sự thật · mơ hồ/thiếu thông tin · ngoài phạm vi/thẩm quyền · đặc thù domain/cohort.
+  - 4 case hiếm: thông báo trạng thái không có timestamp deadline · prompt injection · ngày tương đối · nguồn đã bị xoá.
+  - 10/20 case được phát triển từ Discord pack đã ẩn danh và giữ mã `msg_id` để kiểm tra nguồn.
+* **Lượt đo 1 (AI thật):** xem `eval/RUN-01-REPORT.md` và bảng đầy đủ `eval/run-01.csv`. Hệ thống hybrid đã chạy đủ 20/20 case qua NVIDIA NIM API với model `deepseek-ai/deepseek-v4-flash-0731`: **19 PASS, 1 FAIL, đạt 95%, 0 case bịa/sai deadline**. Output, trace và SHA-256 được giữ trong `eval/` để truy vết.
 * **Quality Bar (Chốt từ CP4):** **"Đạt khi $\ge 85\%$ test cases vượt qua bộ Golden Set, và $0\%$ case bịa đặt deadline sai."**
 
 ---
