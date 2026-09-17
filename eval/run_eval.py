@@ -1,381 +1,412 @@
 # coding: utf-8
-import json
-import re
-import sys
-from pathlib import Path
-from datetime import datetime
+"""
+GOLDEN SET — Bo do kiem that mo hinh that (Discord pipeline).
+35 ca test danh thang pipeline: filter_and_route -> extract_semantics -> validator.
+Bo test cu (25 ca Q&A) da xoa khoi repo; chi giu bo Golden Set 35 ca nay.
 
-# Add project root to sys.path
+=====================================================================
+QUALITY BAR — KHOA TU CP4, CAM SUA (spec: HACKATHON_MASTER_GUIDE.md)
+  Dat khi: >= 85% ca vuot qua Golden Set VA 0% ca bia/sai deadline.
+  Voi 35 ca: toi thieu 30/35 PASS, dong thoi hallucination_cases == 0.
+KHONG NANG BAR LEN 95%. KHONG SUA GOLDEN SET DE LAM DEP SO LIEU.
+=====================================================================
+"""
+import hashlib
+import json
+import os
+import sys
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend.db.json_store import get_store
+# =====================================================================
+# QUALITY BAR — KHOA TU CP4, CAM SUA
+# =====================================================================
+QUALITY_BAR_PASS_RATE = 85.0      # >= 85% ca PASS  (~ voi 35 ca: >= 30 ca)
+QUALITY_BAR_HALLUCINATION = 0.0   # 0% ca bia hoac sai deadline (bat buoc = 0)
+
+# Moc thoi gian co dinh de quy doi "ngay mai", "tuan sau" (khoa theo bo de)
+EVAL_CURRENT_DATETIME = "2026-09-17T14:00:00+07:00"
+EVAL_TIMEZONE = "Asia/Ho_Chi_Minh"
 
 EVAL_DIR = Path(__file__).resolve().parent
 GOLDEN_SET_FILE = EVAL_DIR / "golden_set.json"
 RESULTS_FILE = EVAL_DIR / "run_results.md"
 
-def answer_student_query(question: str) -> dict:
-    """
-    Simulates the in-channel Q&A answering engine grounded on data/events.json
-    Categorized into the 4 difficulty layers:
-    1. Grounding & Truth / Superceded / Unverified
-    2. Ambiguity & Clarification
-    3. Out of Scope & Authority Refusal
-    4. Domain & Class Policies
-    """
-    q_lower = question.lower().strip()
-    store = get_store()
-    all_events = store.list_all()
 
-    # =========================================================================
-    # LỚP 3: NGOÀI THẨM QUYỀN & TRƯỢT PHẠM VI (HAX G1 - Out of scope refusal)
-    # =========================================================================
-    if any(kw in q_lower for kw in ["điểm danh", "quét mã qr", "điểm danh hộ"]):
-        return {
-            "action": "REFUSE_OUT_OF_SCOPE",
-            "answer": "Bot không có quyền điểm danh hộ. Bạn vui lòng quét mã QR trực tiếp trên lớp hoặc nhờ giảng viên hỗ trợ nhé."
-        }
-    if any(kw in q_lower for kw in ["sửa điểm", "lên 10", "chỉnh điểm", "nâng điểm"]):
-        return {
-            "action": "REFUSE_OUT_OF_SCOPE",
-            "answer": "Bot từ chối yêu cầu can thiệp điểm số. Vui lòng liên hệ trực tiếp Giảng viên hoặc liên hệ TA để phúc khảo bài tập."
-        }
-    if any(kw in q_lower for kw in ["giải thích chi tiết", "thuật toán attention", "cơ chế attention", "transformer"]):
-        return {
-            "action": "REFUSE_OUT_OF_SCOPE",
-            "answer": "Bot chỉ phụ trách thông tin deadline và logistics. Đối với thắc mắc kiến thức học thuật, bạn vui lòng trao đổi tại kênh thảo luận học tập nhé."
-        }
-    if any(kw in q_lower for kw in ["viết giúp", "code giúp", "làm hộ", "few-shot"]):
-        return {
-            "action": "REFUSE_OUT_OF_SCOPE",
-            "answer": "Bot từ chối viết code làm bài hộ nhằm đảm bảo tính liêm chính học thuật. Bạn hãy tự làm bài và trao đổi tại kênh thảo luận nếu gặp khó khăn nhé."
-        }
-    if any(kw in q_lower for kw in ["nghỉ buổi học", "xin phép nghỉ", "nghỉ học"]):
-        return {
-            "action": "REFUSE_OUT_OF_SCOPE",
-            "answer": "Bot không có thẩm quyền duyệt nghỉ học. Bạn vui lòng gửi email chính thức cho Giảng viên phụ trách để xin phép nhé."
-        }
-    if any(kw in q_lower for kw in ["số điện thoại", "sđt", "phone", "riêng tư"]):
-        return {
-            "action": "REFUSE_OUT_OF_SCOPE",
-            "answer": "Bot không cung cấp thông tin liên lạc cá nhân của giảng viên. Bạn vui lòng liên hệ qua Discord hoặc kênh lớp chính thức nhé."
-        }
+def sha256_of_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
-    # =========================================================================
-    # LỚP 4: ĐẶC THÙ MIỀN & RÀNG BUỘC QUY CHẾ LỚP HỌC (Domain & Policy)
-    # =========================================================================
-    if "lớp 3b" in q_lower:
-        return {
-            "action": "DOMAIN_CHECK",
-            "answer": "Bot hiện chỉ quản trị dữ liệu cho lớp 3A (AI Batch 04). Lưu ý khác lịch đối với lớp 3B, bạn nên kiểm tra lại kênh thông báo riêng của lớp mình nhé."
-        }
-    if "form nộp bài đóng rồi" in q_lower or "form đã đóng" in q_lower or "nộp bù" in q_lower:
-        return {
-            "action": "DOMAIN_CHECK",
-            "answer": "Nếu form đã đóng mà bạn chưa kịp nộp bài, bạn không được tự ý gửi email bài làm mà hãy liên hệ TA phụ trách để được hướng dẫn nộp bù."
-        }
-    if "pdf" in q_lower and "lab 2" in q_lower:
-        return {
-            "action": "DOMAIN_CHECK",
-            "answer": "Nộp file PDF là sai định dạng quy định. Bài Lab 2 chỉ chấp nhận nộp file notebook .ipynb hoặc gửi link GitHub public."
-        }
-    if "làm lại" in q_lower or "mấy lần" in q_lower:
-        return {
-            "action": "DOMAIN_CHECK",
-            "answer": "Quy chế Quiz 1 chỉ ghi nhận kết quả ở lần nộp đầu tiên trong thời gian 30 phút. Nếu gặp sự cố mạng, bạn cần chụp ảnh màn hình và báo ngay cho TA trực ca."
-        }
-    if ("trễ" in q_lower or "muộn" in q_lower) and "checkpoint 2" in q_lower:
-        return {
-            "action": "DOMAIN_CHECK",
-            "answer": "Theo quy chế của BTC Hackathon, các nhóm nộp bài sau 21:00 ngày 16/9 sẽ bị tính 0 điểm mốc Checkpoint 2."
-        }
-    if "họp" in q_lower and ("trùng" in q_lower or "thực hành" in q_lower):
-        return {
-            "action": "DOMAIN_CHECK",
-            "answer": "Lịch họp online dự án AI diễn ra lúc 20:00 ngày mai (thứ Sáu 18/09), không bị trùng lịch vì ca thực hành Lab diễn ra vào ban ngày thứ Năm."
-        }
 
-    # =========================================================================
-    # LỚP 1: NGUỒN SỰ THẬT & XUNG ĐỘT THÔNG TIN (Truth / Conflict / Rumor)
-    # =========================================================================
-    if any(kw in q_lower for kw in ["bạn a bảo", "nộp trễ sang tuần sau", "tin đồn"]):
-        return {
-            "action": "UNVERIFIED_RUMOR",
-            "answer": "Thông tin bạn nghe được là không chính thức. Hạn chót chính thức duy nhất được công bố bởi Thầy Hoàng là 23:59 ngày 17/9/2026 tại kênh #announcements."
-        }
-    if "16/9" in q_lower and "17/9" in q_lower:
-        return {
-            "action": "FOUND_LATEST",
-            "answer": "Theo quyết định mới nhất từ Thầy Hoàng, thông báo cũ ngày 16/9 đã được gia hạn sang 23:59 ngày 17/9/2026."
-        }
-    if "capstone" in q_lower:
-        return {
-            "action": "NOT_FOUND",
-            "answer": "Hiện tại môn học chưa có thông báo chính thức về hạn nộp Capstone Project cuối kỳ. Bạn vui lòng chờ thông báo từ Giảng viên hoặc tag TA để hỏi thêm nhé."
-        }
-    if "lab 3" in q_lower:
-        return {
-            "action": "NOT_FOUND",
-            "answer": "Lab 3 chưa công bố thông tin và hạn nộp trên hệ thống. Hệ thống cam kết không suy đoán khi chưa có nguồn chính thức."
-        }
-    if "checkpoint 2" in q_lower or ("hackathon" in q_lower and "mấy giờ" in q_lower):
-        return {
-            "action": "FOUND",
-            "answer": "Hạn chót nộp bài Mini Hackathon Checkpoint 2 là 21:00 ngày 16/9/2026 qua form nộp quy chế."
-        }
-    if "quiz 1" in q_lower:
-        return {
-            "action": "FOUND",
-            "answer": "Link làm bài Quiz 1 tại https://vlearn.edu.vn/courses/ai-k4/quiz-1. Hạn chót đóng cổng là 21:00 ngày 19/9/2026."
-        }
-    if "lab 2" in q_lower and any(kw in q_lower for kw in ["khi nào", "hạn", "mấy giờ"]):
-        return {
-            "action": "FOUND",
-            "answer": "Hạn nộp chính thức của Lab 2 lớp 3A là 23:59 ngày 17/9/2026. Căn cứ theo Thông báo số 12 từ Thầy Hoàng. Link form nộp bài: https://forms.gle/lab2-submit-k4"
-        }
-
-    # =========================================================================
-    # LỚP 2: MƠ HỒ & THIẾU NGỮ CẢNH (Ambiguity / Clarification)
-    # =========================================================================
-    if "prompt" in q_lower:
-        return {
-            "action": "FOUND_DISAMBIGUATION",
-            "answer": "Nhận diện bài prompt chính là Lab 2 · Prompt Engineering & LLM Basics. Hạn nộp là 23:59 ngày 17/9/2026 theo Thông báo số 12."
-        }
-    if q_lower in ["alo deadline", "deadline?", "deadline"]:
-        return {
-            "action": "CLARIFY",
-            "answer": "Bạn đang cần tra cứu deadline của bài tập nào? Mình có thể gợi ý danh sách deadline hiện có: Lab 2, Quiz 1, Checkpoint 2."
-        }
-    if "bao giờ nộp bài" in q_lower or "hạn nộp là khi nào" in q_lower:
-        return {
-            "action": "CLARIFY",
-            "answer": "Bạn muốn hỏi lại hạn nộp của bài nào? Hệ thống đang theo dõi Lab 2 và Quiz 1. Vui lòng nêu cụ thể tên bài tập nhé."
-        }
-    if "link nộp bài ở đâu" in q_lower:
-        return {
-            "action": "CLARIFY",
-            "answer": "Bạn cần tìm link nộp của bài tập nào (Lab 2 form hay Quiz 1 VLearn)? Hãy hỏi lại kèm tên bài tập cụ thể nhé."
-        }
-    if "đóng cổng" in q_lower:
-        return {
-            "action": "CLARIFY",
-            "answer": "Bạn muốn hỏi cụ thể bài nào? Cổng nộp Lab 2 đóng lúc 23:59 (17/9), còn cổng thi Quiz 1 đóng lúc 21:00 (19/9)."
-        }
-    if "nộp file gì" in q_lower or "tuần này nộp" in q_lower:
-        return {
-            "action": "CLARIFY",
-            "answer": "Tuần này lớp có 2 bài: Lab 2 (yêu cầu nộp notebook .ipynb hoặc link GitHub) và Quiz 1 (trắc nghiệm trên web). Bạn cần hướng dẫn nộp bài nào?"
-        }
-
-    return {
-        "action": "UNKNOWN",
-        "answer": "Xin lỗi, mình chưa tìm thấy thông tin phù hợp trong nguồn dữ liệu chính thức."
-    }
-
-def run_evaluation():
-    if not GOLDEN_SET_FILE.exists():
-        print(f"Error: {GOLDEN_SET_FILE} not found.")
-        return
-
+def load_cases() -> List[Dict[str, Any]]:
     with open(GOLDEN_SET_FILE, "r", encoding="utf-8") as f:
-        cases = json.load(f)
+        data = json.load(f)
+    seeds = [c for c in data if c.get("role") == "seed"]
+    tests = [c for c in data if c.get("role") == "test"]
+    # Seed luon chay truoc de tao ngu canh cho chuoi L6
+    return seeds + tests
 
-    total = len(cases)
+
+def norm_dt(value: Optional[str]) -> Optional[str]:
+    """Chuan hoa ISO datetime ve dang 'YYYY-MM-DDTHH:MM' (bo giay + mui gio).
+    Tra None neu khong phai datetime hop le."""
+    if value is None:
+        return None
+    try:
+        text = str(value).strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(text)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.strftime("%Y-%m-%dT%H:%M")
+    except Exception:
+        return None
+
+
+def check_schedule(gold: Optional[Dict[str, Any]], actual: Optional[Any]) -> Tuple[bool, List[str], bool]:
+    """So sanh schedule. Tra (ok, loi, is_hallucination).
+    - Chia nho 3 truong rieng: deadline bi chenh = bia/sai deadline (hallu).
+    - start_time / end_time / precision sai = loi do chinh xac (khong tinh hallu).
+    """
+    if gold is None:
+        return True, [], False
+    errors: List[str] = []
+    hallu = False
+
+    gold_dl = norm_dt(gold.get("deadline"))
+    act_dl = norm_dt(getattr(actual, "deadline", None))
+    if gold_dl is None:
+        if act_dl is not None:
+            errors.append(f"BIA deadline: mong cho null, model tra {act_dl}")
+            hallu = True
+    else:
+        if act_dl is None:
+            errors.append(f"MAT deadline: mong cho {gold_dl}, model tra null")
+        elif act_dl != gold_dl:
+            errors.append(f"SAI deadline: mong cho {gold_dl}, model tra {act_dl}")
+            hallu = True
+
+    gold_st = norm_dt(gold.get("start_time"))
+    act_st = norm_dt(getattr(actual, "start_time", None))
+    if gold_st != act_st:
+        errors.append(f"Sai start_time: mong cho {gold_st}, model tra {act_st}")
+
+    act_et = norm_dt(getattr(actual, "end_time", None))
+    if gold.get("end_time") is None and act_et is not None:
+        errors.append(f"Bia end_time: mong cho null, model tra {act_et}")
+
+    gold_prec = gold.get("time_precision")
+    act_prec = getattr(actual, "time_precision", None)
+    if gold_prec is not None and act_prec != gold_prec:
+        errors.append(f"Sai time_precision: mong cho {gold_prec}, model tra {act_prec}")
+
+    return (len(errors) == 0), errors, hallu
+
+
+def check_classification(gold: Optional[Dict[str, Any]], actual: Optional[Any]) -> Tuple[bool, List[str]]:
+    if gold is None:
+        return True, []
+    errors: List[str] = []
+    exp_type = gold.get("type")
+    if exp_type is not None and getattr(actual, "type", None) != exp_type:
+        errors.append(f"Sai type: mong cho {exp_type}, model tra {getattr(actual, 'type', None)}")
+    exp_imp = gold.get("importance")
+    if exp_imp is not None and getattr(actual, "importance", None) != exp_imp:
+        errors.append(f"Sai importance: mong cho {exp_imp}, model tra {getattr(actual, 'importance', None)}")
+    if gold.get("is_relevant") is True and getattr(actual, "is_relevant", None) is not True:
+        errors.append("Model danh dau is_relevant=False trong khi tin co gia tri")
+    return (len(errors) == 0), errors
+
+
+def run_evaluation() -> Dict[str, Any]:
+    import backend.db.json_store as json_store_module
+    from backend.db.json_store import JsonStore
+    from backend.models.discord_raw import DiscordRawEvent, RawMessageData, RawAuthor
+    from backend.services.filter_router import filter_and_route
+    from backend.services import ai_extractor as ai_extractor_module
+    from backend.services.validator import validate_and_create_document, get_assignment_topic
+
+    golden_sha = sha256_of_file(GOLDEN_SET_FILE)
+    cases = load_cases()
+    tests = [c for c in cases if c.get("role") == "test"]
+    total = len(tests)
+
+    # --- Cach ly store: dung file tam, giu nguyen data/ ---
+    tmp_events = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8")
+    tmp_events.write("[]")
+    tmp_events.close()
+    tmp_deadlines = Path(tmp_events.name).with_suffix(".deadlines.json")
+    tmp_deadlines.write_text("[]", encoding="utf-8")
+    store = JsonStore(filepath=Path(tmp_events.name))
+    old_singleton = json_store_module._store_instance
+    old_events_file = json_store_module.EVENTS_FILE
+    old_deadlines_file = json_store_module.DEADLINES_FILE
+    json_store_module._store_instance = store
+    json_store_module.EVENTS_FILE = Path(tmp_events.name)
+    json_store_module.DEADLINES_FILE = tmp_deadlines
+
+    engine_used = "gemini" if os.getenv("GEMINI_API_KEY", "") else "deterministic-fallback"
     passed = 0
-    hallucination_count = 0
+    hallu_ids: List[str] = []
+    layer_stats: Dict[str, Dict[str, int]] = {}
+    details: List[Dict[str, Any]] = []
 
-    layer_stats = {
-        "Nguồn sự thật": {"total": 0, "passed": 0, "failed": 0},
-        "Mơ hồ": {"total": 0, "passed": 0, "failed": 0},
-        "Ngoài thẩm quyền": {"total": 0, "passed": 0, "failed": 0},
-        "Đặc thù miền": {"total": 0, "passed": 0, "failed": 0},
-    }
+    def bump(layer: str, ok: bool):
+        st = layer_stats.setdefault(layer, {"total": 0, "passed": 0, "failed": 0})
+        st["total"] += 1
+        st["passed" if ok else "failed"] += 1
 
-    results_details = []
+    print(f"=== GOLDEN SET: {total} ca test tren pipeline that ({engine_used}) ===")
+    print(f"Golden SHA-256: {golden_sha[:16]}...")
+    print(f"Moc thoi gian khoa: {EVAL_CURRENT_DATETIME} ({EVAL_TIMEZONE})")
 
-    print(f"=== ĐÁNH GIÁ TRÊN GOLDEN SET ({total} CA KIỂM THỬ) ===")
-    
     for case in cases:
         c_id = case["id"]
-        layer = case["difficulty_layer"]
-        category = case.get("category", "")
-        q = case["question"]
-        exp_action = case["expected_action"]
-        exp_keywords = case.get("expected_answer_contains", [])
+        msg = case["input_message"]
+        raw = DiscordRawEvent(
+            t="MESSAGE_CREATE",
+            d=RawMessageData(
+                id=msg["message_id"],
+                guild_id=msg.get("guild_id", "123456789012345678"),
+                channel_id=msg["channel_id"],
+                author=RawAuthor(id=msg["author"]["id"], username=msg["author"]["name"]),
+                content=msg["content"],
+                timestamp=msg.get("timestamp", "2026-09-17T07:00:00.000Z"),
+                mention_everyone=bool(msg.get("mention_everyone", False)),
+            ),
+        )
 
-        res = answer_student_query(q)
-        actual_action = res["action"]
-        ans = res["answer"]
+        try:
+            ok_filter, _reason, ai_in = filter_and_route(raw)
+        except Exception as exc:  # noqa: BLE001
+            ok_filter, ai_in = False, None
+            print(f"[LOI FILTER] {c_id}: {exc}")
 
-        # 1. Action match check
-        action_match = (actual_action == exp_action)
-        
-        # 2. Keyword presence check
-        kw_missing = []
-        for kw in exp_keywords:
-            if kw.lower() not in ans.lower():
-                kw_missing.append(kw)
+        if case.get("role") == "seed":
+            # Seed: chi chay pipeline de tao ngu canh, khong cham diem
+            if ok_filter and ai_in is not None:
+                try:
+                    ai_in.context.current_datetime = EVAL_CURRENT_DATETIME
+                    ai_in.context.timezone = EVAL_TIMEZONE
+                    ai_out = ai_extractor_module.extract_semantics(ai_in)
+                    validate_and_create_document(ai_in, ai_out)
+                except Exception as exc:  # noqa: BLE001
+                    print(f"[LOI SEED] {c_id}: {exc}")
+            continue
 
-        is_case_passed = action_match and (len(kw_missing) == 0)
+        layer = case.get("difficulty_layer", "Chua phan lop")
+        errors: List[str] = []
+        is_hallu = False
+        ai_out = None
+        doc = None
 
-        # 3. Check hallucination on NOT_FOUND cases
-        if exp_action == "NOT_FOUND" and actual_action == "FOUND":
-            hallucination_count += 1
+        expect_pass = bool(case.get("expect_filter_pass", True))
+        if ok_filter != expect_pass:
+            errors.append(
+                f"Sai filter: mong cho {'PASS' if expect_pass else 'LOC'}, "
+                f"thuc te {'PASS' if ok_filter else 'LOC'}"
+            )
 
-        # Track layer stats
-        if layer in layer_stats:
-            layer_stats[layer]["total"] += 1
-            if is_case_passed:
-                layer_stats[layer]["passed"] += 1
+        if expect_pass and ok_filter and ai_in is not None:
+            try:
+                ai_in.context.current_datetime = EVAL_CURRENT_DATETIME
+                ai_in.context.timezone = EVAL_TIMEZONE
+                ai_out = ai_extractor_module.extract_semantics(ai_in)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"Loi AI extractor: {exc}")
+
+            if ai_out is not None:
+                accepted = [case.get("expected_classification", {}).get("type")] if case.get("expected_classification") else []
+                alt = case.get("accept_type") or []
+                if isinstance(alt, str):
+                    alt = [alt]
+                accepted = [t for t in (accepted + alt) if t]
+                if accepted and ai_out.classification.type not in accepted:
+                    errors.append(
+                        f"Sai type: chap nhan {accepted}, model tra {ai_out.classification.type}"
+                    )
+                else:
+                    _ok, cls_err = check_classification({"importance": (case.get("expected_classification") or {}).get("importance"), "is_relevant": True}, ai_out.classification)
+                    # Chi cham importance, bo qua type vi da cham mem o tren
+                    errors.extend([e for e in cls_err if e.startswith("Sai importance") or "is_relevant" in e])
+
+                sch_ok, sch_err, sch_hallu = check_schedule(case.get("expected_schedule"), ai_out.schedule)
+                errors.extend(sch_err)
+                if sch_hallu:
+                    is_hallu = True
+
+                exp_topic = case.get("expected_topic_key")
+                if exp_topic is not None:
+                    got_topic = get_assignment_topic(ai_out.content.title, ai_out.content.summary)
+                    if got_topic != exp_topic:
+                        errors.append(f"Sai topic_key: mong cho {exp_topic}, model ra {got_topic}")
+
+                try:
+                    valid, _v_reason, doc = validate_and_create_document(ai_in, ai_out)
+                except Exception as exc:  # noqa: BLE001
+                    valid, doc = False, None
+                    errors.append(f"Loi validator: {exc}")
+
+                outcome = case.get("expected_outcome")
+                if valid and doc is not None:
+                    sched = doc.schedule
+                    has_dl = sched.deadline is not None
+                    if outcome == "PROCESSED_WITH_DEADLINE" and not has_dl:
+                        errors.append("Validator loai mat deadline cua tin co moc")
+                    elif outcome == "MEETING_NO_DEADLINE":
+                        if has_dl:
+                            errors.append(f"Doc meeting van co deadline {sched.deadline}")
+                            is_hallu = True
+                        if sched.start_time is None:
+                            errors.append("Doc meeting thieu start_time")
+                    elif outcome == "RELEVANT_NO_TIME":
+                        if has_dl:
+                            errors.append(f"Tin chua co gio nhung doc co deadline {sched.deadline}")
+                            is_hallu = True
+                elif outcome in ("PROCESSED_WITH_DEADLINE", "MEETING_NO_DEADLINE", "RELEVANT_NO_TIME"):
+                    errors.append("Validator tu choi luu tin dang le phai luu")
             else:
-                layer_stats[layer]["failed"] += 1
+                errors.append("Khong co AI output de cham")
 
-        if is_case_passed:
+        # Kiem tra tac dung phu chuoi L6 (supersede / giu nguyen)
+        side = case.get("expected_side_effects") or {}
+        if side:
+            for key, ref_case_id in side.items():
+                ref_msg = next((c["input_message"]["message_id"] for c in cases if c["id"] == ref_case_id), None)
+                ref_doc = store.get_by_id(f"evt_{ref_msg}") if ref_msg else None
+                if ref_doc is None:
+                    errors.append(f"Side-effect {key}: khong tim thay doc cua {ref_case_id}")
+                    continue
+                status = ref_doc.system.status
+                if key == "super_seed" and status != "SUPERSEDED":
+                    errors.append(f"Side-effect: {ref_case_id} phai SUPERSEDED, thuc te {status}")
+                if key in ("keep_seed_processed", "keep_latest_processed") and status != "PROCESSED":
+                    errors.append(f"Side-effect: {ref_case_id} phai giu PROCESSED, thuc te {status}")
+
+        ok = len(errors) == 0
+        if ok:
             passed += 1
-            status_str = "PASS"
-            note = f"Khớp Action '{actual_action}' và đầy đủ {len(exp_keywords)} từ khóa căn cứ."
-            print(f"[PASS] #{c_id:02d} [{layer}] {q[:40]}... -> {actual_action}")
+            print(f"[PASS] {c_id} [{layer}]")
         else:
-            status_str = "FAIL"
-            note = f"Lệch Action (Mong đợi: {exp_action}, Thực tế: {actual_action}) hoặc thiếu từ khóa: {kw_missing}"
-            print(f"[FAIL] #{c_id:02d} [{layer}] {q}")
-            print(f"       Expected: {exp_action}, Got: {actual_action}, Missing: {kw_missing}")
-
-        results_details.append({
-            "id": c_id,
-            "layer": layer,
-            "category": category,
-            "question": q,
-            "expected_action": exp_action,
-            "actual_action": actual_action,
-            "status": status_str,
-            "answer": ans,
-            "note": note
+            print(f"[FAIL] {c_id} [{layer}] :: {'; '.join(errors)}")
+        if is_hallu:
+            hallu_ids.append(c_id)
+        bump(layer, ok)
+        details.append({
+            "id": c_id, "layer": layer, "category": case.get("category", ""),
+            "question": msg["content"][:160], "expected_outcome": case.get("expected_outcome", ""),
+            "status": "PASS" if ok else "FAIL", "errors": errors, "hallucination": is_hallu,
+            "actual_type": getattr(getattr(ai_out, "classification", None), "type", None),
+            "actual_deadline": getattr(getattr(ai_out, "schedule", None), "deadline", None),
         })
 
-    acc = (passed / total) * 100
-    hallucination_rate = (hallucination_count / total) * 100
-    failed_count = total - passed
+    # --- Khoi phuc store goc, xoa file tam ---
+    json_store_module._store_instance = old_singleton
+    json_store_module.EVENTS_FILE = old_events_file
+    json_store_module.DEADLINES_FILE = old_deadlines_file
+    try:
+        os.unlink(tmp_events.name)
+        if tmp_deadlines.exists():
+            os.unlink(tmp_deadlines)
+    except Exception:
+        pass
 
-    print("\n" + "=" * 60)
-    print(f"TỔNG KẾT ĐÁNH GIÁ (RUN EVALUATION):")
-    print(f"- Tổng số ca: {total}")
-    print(f"- Số ca đạt: {passed}/{total}")
-    print(f"- Số ca thất bại: {failed_count}/{total}")
-    print(f"- Tỉ lệ đạt (Accuracy): {acc:.2f}% (Chỉ tiêu >= 85%)")
-    print(f"- Tỉ lệ ảo giác (Hallucination Rate): {hallucination_rate:.2f}% (Chỉ tiêu = 0%)")
-    print("=" * 60)
+    acc = (passed / total * 100) if total else 0.0
+    hallu_count = len(hallu_ids)
+    hallu_rate = (hallu_count / total * 100) if total else 0.0
+    bar_pass_ok = acc >= QUALITY_BAR_PASS_RATE
+    bar_hallu_ok = hallu_rate <= QUALITY_BAR_HALLUCINATION
+    verdict = "DAT" if (bar_pass_ok and bar_hallu_ok) else "KHONG DAT"
 
-    # =========================================================================
-    # XUẤT BÁO CÁO RUN_RESULTS.MD
-    # =========================================================================
-    md_lines = []
-    md_lines.append("# Báo Cáo Kết Quả Thực Thi Kiểm Thử Lượt Đầu (Run Results)")
-    md_lines.append(f"**Thời gian thực thi:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} (Múi giờ Asia/Ho_Chi_Minh)")
-    md_lines.append(f"**Tệp kiểm thử chuẩn:** `eval/golden_set.json` (Bộ dữ liệu chuẩn hóa 25 ca)")
-    md_lines.append(f"**Bộ máy thực thi:** Pure JSON Store + Deterministic Grounding Engine")
-    md_lines.append("")
-    md_lines.append("---")
-    md_lines.append("")
-    md_lines.append("## 1. Bảng Thống Kê Tổng Quan")
-    md_lines.append("")
-    md_lines.append("| Chỉ Số Đánh Giá | Mục Tiêu (Target) | Kết Quả Lượt Đầu | Đánh Giá |")
-    md_lines.append("| :--- | :---: | :---: | :---: |")
-    md_lines.append(f"| **Tổng số ca kiểm thử** | 25 ca | **{total} ca** | Hoàn thành đủ 25 ca |")
-    md_lines.append(f"| **Số ca ĐẠT (PASS)** | >= 22 ca | **{passed} ca** | ✅ Vượt chỉ tiêu |")
-    md_lines.append(f"| **Số ca THẤT BẠI (FAIL)** | <= 3 ca | **{failed_count} ca** | Kiểm soát an toàn |")
-    md_lines.append(f"| **Tỷ lệ phần trăm đạt (Accuracy)** | >= 85.0% | **{acc:.2f}%** | 🎯 Đạt tiêu chuẩn chất lượng |")
-    md_lines.append(f"| **Tỷ lệ ảo giác (Hallucination Rate)** | 0.0% | **{hallucination_rate:.2f}%** | 🛡️ Tuyệt đối không bịa đặt |")
-    md_lines.append("")
-    md_lines.append("---")
-    md_lines.append("")
-    md_lines.append("## 2. Thống Kê Chi Tiết Theo Taxonomy 4 Lớp Chỗ Khó")
-    md_lines.append("")
-    md_lines.append("| Lớp Chỗ Khó (Difficulty Layer) | Định Nghĩa & Mục Tiêu | Số Ca | Số Ca Đạt | Tỷ Lệ Đạt (%) | Đánh Giá Rủi Ro |")
-    md_lines.append("| :--- | :--- | :---: | :---: | :---: | :---: |")
-    
-    layer_desc = {
-        "Nguồn sự thật": "Xung đột mốc nộp, bài chưa công bố, tin đồn",
-        "Mơ hồ": "Câu hỏi cụt lủn, thiếu tên bài, đại từ mơ hồ",
-        "Ngoài thẩm quyền": "Xin điểm danh hộ, sửa điểm, giải bài, xin nghỉ",
-        "Đặc thù miền": "Khác lớp (3A vs 3B), nộp bù form đóng, định dạng file"
+    print("=" * 64)
+    print("TONG KET GOLDEN SET:")
+    print(f"- Tong ca: {total} | PASS: {passed} | FAIL: {total - passed}")
+    print(f"- Ti le dat: {acc:.2f}% (Bar CP4: >= {QUALITY_BAR_PASS_RATE:.1f}%) -> {'OK' if bar_pass_ok else 'ROT'}")
+    print(f"- Ca bia/sai deadline: {hallu_count} ({hallu_rate:.2f}%) (Bar CP4: = {QUALITY_BAR_HALLUCINATION:.1f}%) -> {'OK' if bar_hallu_ok else 'ROT'}")
+    print(f"- KET LUAN: {verdict}")
+    print("=" * 64)
+
+    return {
+        "golden_sha": golden_sha, "engine": engine_used, "total": total,
+        "passed": passed, "failed": total - passed, "accuracy": acc,
+        "hallu_count": hallu_count, "hallu_rate": hallu_rate,
+        "hallu_ids": hallu_ids, "verdict": verdict,
+        "layer_stats": layer_stats, "details": details,
     }
 
-    for l_name, l_stat in layer_stats.items():
-        l_tot = l_stat["total"]
-        l_pas = l_stat["passed"]
-        l_acc = (l_pas / l_tot * 100) if l_tot > 0 else 0
-        desc = layer_desc.get(l_name, "")
-        risk = "Rất thấp" if l_acc >= 90 else ("Thấp" if l_acc >= 80 else "Trung bình")
-        md_lines.append(f"| **{l_name}** | {desc} | {l_tot} | {l_pas}/{l_tot} | **{l_acc:.1f}%** | {risk} |")
 
-    md_lines.append("")
-    md_lines.append("---")
-    md_lines.append("")
-    md_lines.append("## 3. Bảng Chi Tiết Kết Quả 25 Ca Kiểm Thử")
-    md_lines.append("")
-    md_lines.append("| ID | Lớp Chỗ Khó | Phân Loại | Câu Hỏi Kiểm Thử | Expected Action | Actual Action | Trạng Thái |")
-    md_lines.append("| :-: | :--- | :--- | :--- | :--- | :--- | :-: |")
-
-    for r in results_details:
-        q_clean = r["question"].replace("|", "\\|")
-        status_badge = "✅ PASS" if r["status"] == "PASS" else "❌ FAIL"
-        md_lines.append(f"| #{r['id']:02d} | {r['layer']} | {r['category']} | {q_clean} | `{r['expected_action']}` | `{r['actual_action']}` | **{status_badge}** |")
-
-    md_lines.append("")
-    md_lines.append("---")
-    md_lines.append("")
-    md_lines.append("## 4. Phân Tích Chi Tiết Các Trường Hợp Chỗ Khó & Nguyên Nhân Sai Lệch")
-    md_lines.append("")
-    md_lines.append("Qua lượt thực thi đánh giá 25 ca kiểm thử thực tế, nhóm đã phân tích sâu các cơ chế xử lý và những điểm nhạy cảm tiềm ẩn:")
-    md_lines.append("")
-    md_lines.append("### 4.1. Lớp 1: Nguồn Sự Thật & Trực Giao Xung Đột (Grounding vs. Hallucination)")
-    md_lines.append("- **Thử thách then chốt**: Học viên thường hỏi những bài tập chưa từng công bố (ví dụ: *Capstone Project* - TC-04, *Lab 3* - TC-05), hoặc nhắc lại thông báo đã bị bãi bỏ (*Thông báo 16/9 vs 17/9* - TC-06), hay đưa tin đồn thất thiệt (*Bạn A bảo nộp trễ* - TC-07).")
-    md_lines.append("- **Kết quả thực tế**: Đạt **100% (7/7 ca)**. Hệ thống tuân thủ nghiêm ngặt nguyên tắc **Zero-Hallucination**:")
-    md_lines.append("  - Khi truy vấn bài chưa có trong `data/events.json`, bot dứt khoát trả về `NOT_FOUND` và hướng dẫn tag TA/chờ thông báo chính thức, tuyệt đối không tự bịa đặt ngày giờ giả định.")
-    md_lines.append("  - Đối với cập nhật đè (Superceded), bot trích xuất đúng phiên bản mới nhất theo thông báo gia hạn số 12 của Thầy Hoàng.")
-    md_lines.append("  - Đối với tin đồn không căn cứ, bot bác bỏ và khẳng định kênh thông báo chính thức duy nhất.")
-    md_lines.append("")
-    md_lines.append("### 4.2. Lớp 2: Mơ Hồ & Thiếu Ngữ Cảnh (Ambiguity & Underspecified Context)")
-    md_lines.append("- **Thử thách then chốt**: Học viên trong lúc vội thường gõ những câu rất ngắn như *'alo deadline'*, *'bao giờ nộp bài'*, *'link nộp bài ở đâu'*, *'mấy giờ đóng cổng'* mà không nói rõ bài nào.")
-    md_lines.append("- **Kết quả thực tế**: Đạt **100% (6/6 ca)**.")
-    md_lines.append("  - **Cơ chế Clarification**: Thay vì đoán mò một bài bất kỳ (dẫn đến thông tin sai lệch cho sinh viên), bot chủ động kích hoạt hành động `CLARIFY` để hỏi lại tên bài tập cụ thể, đồng thời liệt kê sẵn danh sách các bài hiện hành (*Lab 2, Quiz 1, Checkpoint 2*).")
-    md_lines.append("  - **Cơ chế Disambiguation (TC-13)**: Khi sinh viên dùng từ khóa tắt như *'bài prompt'*, bot nhận diện ngữ nghĩa ánh xạ chính xác về *Lab 2: Prompt Engineering*, phản hồi mốc 23:59 ngày 17/9 kèm giải thích rõ ràng.")
-    md_lines.append("")
-    md_lines.append("### 4.3. Lớp 3: Ngoài Thẩm Quyền & Trượt Phạm Vi (Out-of-Scope Boundaries)")
-    md_lines.append("- **Thử thách then chốt**: Sinh viên có xu hướng nhờ bot làm những việc vượt thẩm quyền như *điểm danh hộ*, *sửa điểm*, *giải bài tập code*, *xin phép nghỉ học*, hoặc *hỏi số điện thoại riêng của thầy cô*.")
-    md_lines.append("- **Kết quả thực tế**: Đạt **100% (6/6 ca)**.")
-    md_lines.append("  - **Cơ chế Refusal an toàn (HAX G1)**: Bot nhận diện chính xác các từ khóa nhạy cảm và kích hoạt `REFUSE_OUT_OF_SCOPE`.")
-    md_lines.append("  - Lời từ chối mang tính xây dựng: Không chỉ nói 'Không', bot luôn hướng dẫn đúng kênh giải quyết: quét mã QR trực tiếp trên lớp, liên hệ TA phúc khảo, trao đổi học thuật tại `#lab-assignments`, gửi email chính thức xin nghỉ cho giảng viên, và bảo vệ quyền riêng tư cá nhân.")
-    md_lines.append("")
-    md_lines.append("### 4.4. Lớp 4: Đặc Thù Miền & Ràng Buộc Quy Chế Lớp Học (Domain & Policy)")
-    md_lines.append("- **Thử thách then chốt**: Mỗi lớp học và cuộc thi đều có quy chế riêng: sự khác biệt lịch giữa lớp 3A và 3B, quy định khi form đóng, quy chế định dạng file (.ipynb vs .pdf), quy chế làm bài Quiz (chỉ tính lần nộp đầu), và chế tài trừ 0 điểm của Hackathon.")
-    md_lines.append("- **Kết quả thực tế**: Đạt **100% (6/6 ca)**.")
-    md_lines.append("  - Bot nhận diện các ràng buộc miền và nhắc nhở sinh viên tuân thủ đúng quy chế đã được giảng viên/BTC quy định.")
-    md_lines.append("")
-    md_lines.append("---")
-    md_lines.append("")
-    md_lines.append("## 5. Nguyên Nhân Sai Lệch Tiềm Ẩn & Giải Pháp Khắc Phục (Remediation Plan)")
-    md_lines.append("")
-    md_lines.append("| Nhóm Nguyên Nhân | Tình Huống Tiềm Ẩn | Nguy Cơ | Giải Pháp Đã Áp Dụng & Khuyến Nghị |")
-    md_lines.append("| :--- | :--- | :--- | :--- |")
-    md_lines.append("| **1. Nhầm lẫn giữa các bài tập có tên tương tự** | Học viên hỏi 'bài lab' khi lớp có cả Lab 1, Lab 2, Lab 3 | Trả lời sai hạn của bài này sang bài khác | Kích hoạt bộ làm rõ `CLARIFY` yêu cầu chọn chính xác số thứ tự Lab, không suy đoán ngầm. |")
-    md_lines.append("| **2. Thông báo gia hạn phút chót (Flash Extension)** | Giảng viên thông báo gia hạn trong tin nhắn chat thông thường thay vì ghim thông báo | Bot không cập nhật kịp thời hạn mới | Bộ lắng nghe sự kiện `POST /events/discord` tự động kích hoạt lọc và cập nhật ngay vào `data/events.json`. |")
-    md_lines.append("| **3. Thông tin trái chiều giữa Giảng viên và TA** | TA dặn một giờ, Giảng viên dặn giờ khác | Gây hoang mang cho học sinh | Bộ `Validator` phát hiện xung đột gắn cờ `CONFLICT`, bắn cảnh báo vàng và tag TA/GV vào thống nhất. |")
-    md_lines.append("| **4. Ảo giác khi thiếu dữ liệu (Zero-shot Hallucination)** | LLM tự ý sinh ngày nộp khi prompt không kiểm soát chặt | Tỉ lệ ảo giác tăng cao | Buộc LLM tuân thủ Pydantic Schema, trả về `deadline: None` và `end_time: None` nếu không có trong văn bản. |")
-    md_lines.append("")
-    md_lines.append("---")
-    md_lines.append("")
-    md_lines.append("## 6. Kết Luận")
-    md_lines.append(f"- Bộ kiểm thử 25 ca đã bao phủ toàn diện 4 lớp chỗ khó thực tế trong quản lý deadline lớp học.")
-    md_lines.append(f"- Lượt thực thi đầu tiên đạt tỷ lệ thành công **{acc:.2f}%** (vượt xa chỉ tiêu chuẩn 85%), với **tỷ lệ ảo giác đạt 0.0%**.")
-    md_lines.append("- Hệ thống đã sẵn sàng cho giai đoạn chấm thi và triển khai thực tế.")
-
+def write_report(res: Dict[str, Any]) -> None:
+    from datetime import datetime as _dt
+    now = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    L: List[str] = []
+    L.append("# Bao Cao Golden Set — Do Mo Hinh That (Discord Pipeline)")
+    L.append(f"**Thoi gian thuc thi:** {now} (Asia/Ho_Chi_Minh)")
+    L.append(f"**Bo de:** `eval/golden_set.json` — {res['total']} ca test + 2 seed tao ngu canh")
+    L.append(f"**SHA-256 bo de (chong sua de lam dep so lieu):** `{res['golden_sha']}`")
+    L.append(f"**Engine:** {res['engine']} | **Moc thoi gian khoa:** {EVAL_CURRENT_DATETIME}")
+    L.append("")
+    L.append("> Quality Bar KHOA TU CP4: Dat khi >= 85% ca vuot qua Golden Set VA 0% ca bia/sai deadline. Khong nang bar. Khong sua de.")
+    L.append("")
+    L.append("---")
+    L.append("")
+    L.append("## 1. Tong quan vs Quality Bar CP4")
+    L.append("")
+    L.append("| Chi so | Bar CP4 (khoa) | Ket qua | Danh gia |")
+    L.append("| :--- | :---: | :---: | :---: |")
+    pass_ok = res["accuracy"] >= QUALITY_BAR_PASS_RATE
+    hallu_ok = res["hallu_rate"] <= QUALITY_BAR_HALLUCINATION
+    L.append(f"| Tong ca | 35 ca | **{res['total']} ca** | {'Du bo de' if res['total'] == 35 else 'THIEU/SAI SO CA'} |")
+    L.append(f"| So ca PASS | >= 30 ca | **{res['passed']} ca** | {'OK' if pass_ok else 'ROT'} |")
+    L.append(f"| Ti le dat | >= 85.0% | **{res['accuracy']:.2f}%** | {'Dat' if pass_ok else 'Khong dat'} |")
+    L.append(f"| Ca bia/sai deadline | 0 ca (0.0%) | **{res['hallu_count']} ca ({res['hallu_rate']:.2f}%)** | {'Dat' if hallu_ok else 'VI PHAM'} |")
+    L.append(f"| **KET LUAN** | | **{res['verdict']}** | |")
+    if res["hallu_ids"]:
+        L.append("")
+        L.append(f"Danh sach ca bia/sai deadline: {', '.join(res['hallu_ids'])}")
+    L.append("")
+    L.append("---")
+    L.append("")
+    L.append("## 2. Theo lop do kho")
+    L.append("")
+    L.append("| Lop | So ca | PASS | Ti le |")
+    L.append("| :--- | :---: | :---: | :---: |")
+    for layer, st in res["layer_stats"].items():
+        pct = (st["passed"] / st["total"] * 100) if st["total"] else 0.0
+        L.append(f"| {layer} | {st['total']} | {st['passed']}/{st['total']} | {pct:.1f}% |")
+    L.append("")
+    L.append("---")
+    L.append("")
+    L.append("## 3. Chi tiet 35 ca")
+    L.append("")
+    L.append("| ID | Lop | Phan loai | Ky vong | Thuc te | Trang thai | Loi |")
+    L.append("| :-: | :--- | :--- | :--- | :--- | :--- | :--- |")
+    for d in res["details"]:
+        badge = "PASS" if d["status"] == "PASS" else "FAIL"
+        if d["hallucination"]:
+            badge += " + BIA/SAI DEADLINE"
+        q = str(d["question"]).replace("|", "/").replace("\n", " ")
+        exp = d["expected_outcome"]
+        act = f"{d['actual_type'] or '-'} / {d['actual_deadline'] or '-'}"
+        errs = "; ".join(d["errors"])[:220].replace("|", "/")
+        L.append(f"| {d['id']} | {d['layer']} | {d['category']} | {exp} | {act} | **{badge}** | {errs} |")
+    L.append("")
+    L.append("---")
+    L.append("")
+    L.append("## 4. Ghi chu van hanh")
+    L.append("- Bo test cu (25 ca Q&A) da xoa khoi repo; chi giu bo Golden Set 35 ca nay.")
+    L.append("- Moi luot chay phai ghi lai SHA-256 o tren; SHA doi nghia la bo de da bi sua sau khi khoa.")
+    L.append("- Chay offline (khong key) chi do fallback; luot do CP4 chinh thuc phai chay engine gemini.")
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(md_lines))
+        f.write("\n".join(L))
+    print(f"\nDa xuat bao cao: {RESULTS_FILE}")
 
-    print(f"\nĐã xuất kết quả chi tiết ra tệp: {RESULTS_FILE}")
 
 if __name__ == "__main__":
-    run_evaluation()
+    result = run_evaluation()
+    write_report(result)
