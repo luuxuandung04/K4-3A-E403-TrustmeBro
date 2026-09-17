@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Deadline Bot — Bảng điều khiển tự động tổng hợp deadline 7 ngày tới trong Discord." />
+    <title>Deadline Bot · Discord Hub Tự Động 7 Ngày</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#mainContent">Bỏ qua đến kênh deadline</a>
+    <div class="app-shell">
+      <aside class="server-rail" aria-label="Danh sách máy chủ mô phỏng">
+        <div class="brand-mark" aria-label="Trustmebro">T</div><span class="rail-line"></span>
+        <button class="server-button active" type="button" aria-label="AI Batch 04">A4</button>
+        <button class="server-button" type="button" aria-label="Lớp 3A">3A</button>
+        <span class="rail-spacer"></span><button class="server-button add" type="button" aria-label="Thêm máy chủ">+</button>
+      </aside>
+
+      <aside class="channel-sidebar" aria-label="Danh sách kênh Discord">
+        <header class="workspace-heading"><div><span>AI BATCH 04</span><strong>Phòng E403 · Lớp 3A</strong></div><span aria-hidden="true">⌄</span></header>
+        <nav class="channel-list" aria-label="Các kênh lớp học">
+          <p>TRUNG TÂM LỚP (TỰ ĐỘNG)</p>
+          <button class="channel active" type="button" data-channel="deadline-hub" aria-current="page"><span>📋</span><strong>deadline-hub</strong><em id="badge-deadline-hub">FORUM</em></button>
+          <button class="channel" type="button" data-channel="announcements"><span>#</span><strong>announcements</strong><em id="badge-announcements" class="channel-badge-important">MỚI</em></button>
+          <button class="channel" type="button" data-channel="lich-hoc"><span>#</span><strong>lich-hoc</strong></button>
+          <p>NGUỒN DEADLINE & THẢO LUẬN (SV & TA)</p>
+          <button class="channel" type="button" data-channel="lab-assignments"><span>#</span><strong>lab-assignments</strong></button>
+          <button class="channel" type="button" data-channel="quiz-updates"><span>#</span><strong>quiz-updates</strong></button>
+          <button class="channel" type="button" data-channel="hackathon"><span>#</span><strong>hackathon</strong></button>
+        </nav>
+        <section class="sync-sources" aria-label="Nguồn bot được phép đọc">
+          <div class="sidebar-section-title"><span>BOT THEO DÕI & TỔNG HỢP</span><strong>4 KÊNH</strong></div>
+          <ul>
+            <li><span class="source-dot online"></span># announcements</li>
+            <li><span class="source-dot online"></span># lab-assignments</li>
+            <li><span class="source-dot online"></span># quiz-updates</li>
+            <li><span class="source-dot online"></span># hackathon</li>
+          </ul>
+        </section>
+        <div class="profile-card">
+          <div id="profileAvatar" class="avatar user-avatar">LA</div>
+          <div><strong id="profileName">Lan Anh</strong><span id="profileRole">Học viên · Lớp 3A</span></div>
+          <span aria-label="Cài đặt">⚙</span>
+        </div>
+      </aside>
+
+      <main id="mainContent" class="main-panel discord-main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <div class="channel-name"><span>📋</span> <strong id="activeChannelTitle">deadline-hub</strong></div>
+            <span class="topbar-divider"></span>
+            <p id="activeChannelDesc">Bảng tin tổng hợp deadline & lịch học tự động đồng bộ từ Discord</p>
+          </div>
+          <div class="topbar-actions">
+            <div class="persona-switcher" title="Chuyển đổi vai trò để gửi tin nhắn thử nghiệm">
+              <label for="personaSelect">VAI TRÒ:</label>
+              <select id="personaSelect">
+                <option value="student_lananh">👨‍🎓 Lan Anh (Học viên)</option>
+                <option value="teacher_hoang">👨‍🏫 Thầy Hoàng (Giảng viên)</option>
+                <option value="ta_tuan">👨‍🏫 TA Tuấn (Trợ giảng)</option>
+                <option value="admin_btc">🛡️ BTC Hackathon (Admin)</option>
+              </select>
+            </div>
+            <button id="openLogViewerButton" class="compact-button log-btn" type="button" title="Xem nhật ký luồng xử lý logs/pipeline.log">📜 Pipeline Log</button>
+            <button id="resetDemoDataBtn" class="compact-button reset-btn" type="button" title="Dọn sạch tin nhắn test và khôi phục dữ liệu ban đầu để demo">🧹 Dọn rác / Reset Demo</button>
+            <span id="backendStatusPill" class="prototype-pill" title="Trạng thái kết nối FastAPI Backend AI Pipeline"><i></i> FASTAPI: ĐANG KẾT NỐI...</span>
+            <button id="toggleMembersBtn" class="icon-button" type="button" title="Ẩn/Hiện danh sách thành viên lớp" aria-label="Danh sách thành viên">👥</button>
+          </div>
+        </header>
+
+        <!-- Quick Demo bar updated with notification scenarios -->
+        <section class="quick-demo-bar" aria-label="Kịch bản thử nghiệm nhanh">
+          <span class="quick-label">⚡ THỬ NHANH:</span>
+          <button type="button" class="quick-chip success" data-quick="meeting-event">🤝 Lịch họp khẩn (GV)</button>
+          <button type="button" class="quick-chip danger" data-quick="urgent-extension">🚨 Gia hạn Lab 2 (GV)</button>
+          <button type="button" class="quick-chip idle" data-quick="student-lab-chat">👥 Thảo luận Lab (Bot im lặng)</button>
+        </section>
+
+        <section class="discord-feed-wrap">
+          <div id="messageFeed" class="discord-feed" tabindex="0" aria-label="Hội thoại kênh Discord" aria-live="polite">
+            <!-- Messages rendered dynamically by app.js based on active channel -->
+          </div>
+
+          <button id="feedScrollButton" class="chat-scroll-button" type="button" aria-label="Cuộn xuống tin nhắn mới nhất">↓ Tin mới nhất</button>
+
+          <form id="commandComposer" class="discord-composer" autocomplete="off">
+            <button class="composer-plus" type="button" aria-label="Thêm tệp">+</button>
+            <label class="sr-only" for="commandInput">Nhập tin nhắn hoặc thông báo</label>
+            <input id="commandInput" type="text" maxlength="280" placeholder="Kênh tự động cập nhật · Chỉ TA/Giảng viên đăng thông báo khẩn cấp..." />
+            <div class="composer-tools">
+              <span class="composer-tool-btn" title="Thêm emoji">😊</span>
+              <button class="send-command" type="submit" aria-label="Gửi">Gửi ↗</button>
+            </div>
+          </form>
+          <div class="composer-footer">
+            <p class="composer-note">Đang gửi dưới danh nghĩa: <b id="composerPersonaLabel">Lan Anh (Học viên · Lớp 3A)</b> · Nhấn Enter để gửi tin</p>
+          </div>
+        </section>
+      </main>
+
+      <!-- Discord Server Members Sidebar (Thành viên kênh lớp học) -->
+      <aside id="membersSidebar" class="members-sidebar" aria-label="Danh sách thành viên">
+        <div class="members-group">
+          <span class="members-group-title">GIẢNG VIÊN — 1</span>
+          <div class="member-item">
+            <div class="avatar user-avatar member-avatar">TH<span class="member-status online"></span></div>
+            <div class="member-info">
+              <span class="member-name teacher">Thầy Hoàng</span>
+              <span class="role-tag teacher">GIẢNG VIÊN</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="members-group">
+          <span class="members-group-title">TRỢ GIẢNG — 1</span>
+          <div class="member-item">
+            <div class="avatar user-avatar member-avatar">TT<span class="member-status online"></span></div>
+            <div class="member-info">
+              <span class="member-name ta">TA Tuấn</span>
+              <span class="role-tag ta">TA</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="members-group">
+          <span class="members-group-title">BAN QUẢN TRỊ — 1</span>
+          <div class="member-item">
+            <div class="avatar user-avatar member-avatar">BTC<span class="member-status online"></span></div>
+            <div class="member-info">
+              <span class="member-name admin">BTC Hackathon</span>
+              <span class="role-tag admin">ADMIN</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="members-group">
+          <span class="members-group-title">BOTS / APP — 1</span>
+          <div class="member-item">
+            <div class="avatar bot-avatar member-avatar">D<span class="member-status online"></span></div>
+            <div class="member-info">
+              <span class="member-name bot">Deadline Bot</span>
+              <span class="role-tag bot">APP</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="members-group">
+          <span class="members-group-title">HỌC VIÊN — 2</span>
+          <div class="member-item">
+            <div class="avatar user-avatar member-avatar">LA<span class="member-status online"></span></div>
+            <div class="member-info">
+              <span class="member-name">Lan Anh</span>
+              <span class="role-tag student">LỚP 3A</span>
+            </div>
+          </div>
+          <div class="member-item">
+            <div class="avatar user-avatar member-avatar">DK<span class="member-status idle"></span></div>
+            <div class="member-info">
+              <span class="member-name">Duy Khánh</span>
+              <span class="role-tag student">LỚP 3A</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Modal Xem Chi tiết Deadline (HAX G2) -->
+    <dialog id="detailDialog" class="modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div><span class="eyebrow">NGUỒN DEADLINE & CĂN CỨ</span><h2 id="detailTitle">Chi tiết deadline</h2></div>
+          <button class="close-button" type="button" data-close="detailDialog" aria-label="Đóng">×</button>
+        </div>
+        <div id="detailContent"></div>
+      </div>
+    </dialog>
+
+    <!-- Modal Pipeline Log Viewer (Theo dõi trực tiếp luồng xử lý thông minh) -->
+    <dialog id="logDialog" class="modal json-modal log-dialog-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div><span class="eyebrow">PIPELINE AUDIT TRAIL · LOGS/PIPELINE.LOG</span><h2>Nhật Ký Luồng Xử Lý Sự Kiện</h2></div>
+          <button class="close-button" type="button" data-close="logDialog" aria-label="Đóng">×</button>
+        </div>
+        <p class="modal-copy">Theo dõi hành trình xử lý tin nhắn qua 6 công đoạn: <code>Nhận tin</code> → <code>Lọc Gate</code> → <code>AI Trích xuất</code> → <code>Xác thực & Xung đột</code> → <code>Lưu trữ Kho</code> → <code>Đồng bộ Discord</code>.</p>
+        
+        <!-- Filter bar by Stage -->
+        <div class="log-filter-bar">
+          <div class="log-stage-filters" id="logStageFilters">
+            <button type="button" class="log-filter-chip active" data-stage="ALL">Tất cả</button>
+            <button type="button" class="log-filter-chip" data-stage="DISCORD_EVENT">📩 Sự Kiện</button>
+            <button type="button" class="log-filter-chip" data-stage="CANDIDATE_GATE">🚪 Bộ Lọc Gate</button>
+            <button type="button" class="log-filter-chip" data-stage="AI_EXTRACTOR">🤖 AI Gemini</button>
+            <button type="button" class="log-filter-chip" data-stage="VALIDATOR">⚖️ Xác Thực</button>
+            <button type="button" class="log-filter-chip" data-stage="JSON_STORE">💾 Lưu Kho</button>
+            <button type="button" class="log-filter-chip" data-stage="DISCORD_FORMAT">📢 Định Dạng</button>
+          </div>
+          <div class="log-view-toggle">
+            <button type="button" id="toggleLogModeBtn" class="copy-json-button" data-mode="cards">📄 Xem Raw Text</button>
+            <button type="button" id="refreshLogBtn" class="copy-json-button">🔄 Làm mới</button>
+            <button type="button" id="copyLogBtn" class="copy-json-button">📋 Sao chép</button>
+          </div>
+        </div>
+
+        <div class="json-viewer-box log-viewer-box">
+          <!-- Visual Cards Container -->
+          <div id="logCardsContainer" class="log-cards-list">
+            <div class="log-empty-state">Đang tải nhật ký luồng xử lý...</div>
+          </div>
+          <!-- Raw Text Block (Ẩn mặc định) -->
+          <pre id="logViewerCode" class="json-code-block log-code-block" style="display:none;">Đang tải nhật ký luồng xử lý...</pre>
+        </div>
+
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" data-close="logDialog">Đóng</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Modal Admin Fallback -->
+    <dialog id="adminDialog" class="modal">
+      <form id="adminForm" class="modal-card" method="dialog">
+        <div class="modal-header">
+          <div><span class="eyebrow">ADMIN FALLBACK</span><h2>Thêm deadline thủ công</h2></div>
+          <button class="close-button" type="button" data-close="adminDialog" aria-label="Đóng">×</button>
+        </div>
+        <p class="modal-copy">Chỉ dùng khi không có thông báo máy đọc được. Deadline vẫn cần gắn nguồn và lưu người tạo.</p>
+        <div class="admin-grid">
+          <label>Tên bài<input name="title" required placeholder="Ví dụ: Capstone Project" /></label>
+          <label>Ngày<input name="date" type="date" required value="2026-09-25" /></label>
+          <label>Giờ<input name="time" type="time" required value="23:59" /></label>
+          <label>Kênh nguồn<input name="source" required value="#announcements" /></label>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" data-close="adminDialog">Huỷ</button>
+          <button class="primary-button" type="submit">Thêm vào lịch & JSON</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Modal Correction (Báo sai) -->
+    <dialog id="correctionDialog" class="modal">
+      <form id="correctionForm" class="modal-card" method="dialog">
+        <div class="modal-header">
+          <div><span class="eyebrow">CORRECTION · HUMAN REVIEW</span><h2>Báo deadline chưa đúng</h2></div>
+          <button class="close-button" type="button" data-close="correctionDialog" aria-label="Đóng">×</button>
+        </div>
+        <p class="modal-copy">Bot sẽ gắn “Đang xác minh”, không tự sửa ngày giờ và chuyển nguồn cho admin.</p>
+        <fieldset class="correction-options">
+          <label><input type="radio" name="issue" value="Sai ngày hoặc giờ" checked /> Sai ngày hoặc giờ</label>
+          <label><input type="radio" name="issue" value="Sai tên bài" /> Sai tên bài</label>
+          <label><input type="radio" name="issue" value="Nguồn cũ" /> Nguồn đã cũ</label>
+        </fieldset>
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" data-close="correctionDialog">Huỷ</button>
+          <button class="primary-button" type="submit">Gửi admin xác minh</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

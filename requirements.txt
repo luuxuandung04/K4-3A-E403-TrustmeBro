@@ -1,0 +1,27 @@
+# =====================================================================
+# DISCORD DEADLINE & LOGISTICS GUARD - DEPENDENCY SPECIFICATION
+# Project: K4-3A-E403-Trustmebro
+# Python Version: >=3.10
+# =====================================================================
+
+# --- Core Web Framework & Server ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.8.0
+python-multipart>=0.0.9
+
+# --- Google Gemini AI SDKs (Semantic Extraction) ---
+google-genai>=1.0.0
+google-generativeai>=0.8.0
+
+# --- Environment & Configuration ---
+python-dotenv>=1.0.0
+pytz>=2024.1
+
+# --- HTTP Client & Networking ---
+httpx>=0.27.0
+requests>=2.31.0
+
+# --- Testing & Evaluation Suite ---
+pytest>=8.0.0
+anyio>=4.0.0
