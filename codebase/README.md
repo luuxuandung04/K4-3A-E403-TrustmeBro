@@ -4,7 +4,9 @@
 
 ## Chạy prototype
 
-Mở trực tiếp `index.html` bằng Chrome, Edge hoặc Firefox. Không cần cài package, API key hay khởi động backend.
+Từ thư mục gốc repo, chạy `node codebase/server.js`, sau đó mở `http://127.0.0.1:4173/`. Không cần cài package hoặc API key.
+
+Tin nhắn thường, slash command và phản hồi bot mới được lưu theo channel trong `codebase/data/mes.json`. Server giữ tối đa 300 tin gần nhất cho mỗi channel. Đây là file persistence dành cho demo cục bộ; bản production nên thay bằng database có transaction và phân quyền.
 
 ## Kịch bản demo 45–60 giây
 
@@ -20,6 +22,7 @@ Mở trực tiếp `index.html` bằng Chrome, Edge hoặc Firefox. Không cần
 | Thành phần | CP2 |
 |---|---|
 | Slash command, chat scroll, Discord calendar message, modal nguồn/admin, báo sai | Chạy thật bằng HTML/CSS/JavaScript |
+| Lưu/nạp lịch sử chat theo channel | Chạy thật qua `server.js` và `data/mes.json` |
 | Trạng thái PUBLISHED / NEEDS REVIEW / NO GROUNDING / HUMAN REVIEW | Rule-based mô phỏng, bấm được end-to-end |
 | Nội dung thông báo, confidence, kênh nguồn, TA, thời gian đồng bộ | Dữ liệu mock cố định |
 | Extractor AI, Discord Gateway/API, Components V2, permission, database/audit | Chưa kết nối; thuộc CP3 trở đi |

@@ -96,6 +96,7 @@
               <div class="avatar bot-avatar">D</div>
               <div class="discord-message-body"><div class="chat-meta"><strong>Deadline Bot</strong><span>APP</span><time>08:33</time></div><div class="review-notice"><div><strong>⚠ 1 mục chưa được đưa lên calendar</strong><p>“Nộp project trước thứ Sáu” thiếu tên bài và giờ chốt · confidence 46%.</p></div><button type="button" data-action="approve-review">Admin kiểm tra</button></div></div>
             </article>
+            <div id="storedMessages" class="stored-messages" aria-label="Lịch sử tin nhắn đã lưu"></div>
           </div>
 
           <button id="feedScrollButton" class="chat-scroll-button" type="button" aria-label="Cuộn xuống tin nhắn mới nhất">↓ Tin mới nhất</button>
@@ -111,7 +112,7 @@
             <input id="commandInput" type="text" maxlength="180" placeholder="Nhắn #deadline-hub hoặc nhập /deadline" />
             <button class="send-command" type="submit" aria-label="Gửi lệnh">Gửi ↗</button>
           </form>
-          <div class="composer-footer"><p class="composer-note">Lệnh chạy trong Discord · Không mở dashboard hay website ngoài</p><a class="page-scroll-link" href="#systemGuide">↓ Cuộn trang xem logic</a></div>
+          <div class="composer-footer"><p class="composer-note">Lệnh chạy trong Discord · <span id="persistenceStatus" class="persistence-status">Đang tải lịch sử...</span></p><a class="page-scroll-link" href="#systemGuide">↓ Cuộn trang xem logic</a></div>
         </section>
 
         <section id="systemGuide" class="below-fold-guide" aria-labelledby="systemGuideTitle">

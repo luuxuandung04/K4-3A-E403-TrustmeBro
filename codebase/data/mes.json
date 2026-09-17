@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "channels": {
+    "deadline-hub": [
+      {
+        "id": "seed-001",
+        "channel": "deadline-hub",
+        "author": {
+          "id": "user-lan-anh",
+          "name": "Lan Anh",
+          "initials": "LA",
+          "role": "member"
+        },
+        "kind": "message",
+        "content": "Mọi người có thể nhắn ở đây, refresh trang vẫn còn lịch sử nhé.",
+        "createdAt": "2026-09-17T08:36:00+07:00"
+      },
+      {
+        "id": "seed-002",
+        "channel": "deadline-hub",
+        "author": {
+          "id": "deadline-bot",
+          "name": "Deadline Bot",
+          "initials": "D",
+          "role": "bot"
+        },
+        "kind": "bot",
+        "content": "Đã bật lưu lịch sử demo cho #deadline-hub.",
+        "createdAt": "2026-09-17T08:36:05+07:00"
+      },
+      {
+        "id": "1789631545054-x9hcm8",
+        "channel": "deadline-hub",
+        "author": {
+          "id": "deadline-bot",
+          "name": "Deadline Bot",
+          "initials": "D",
+          "role": "bot"
+        },
+        "kind": "bot",
+        "content": "AUTO-PUBLISH: nguồn chính thức, đủ tên bài và ngày giờ nên deadline được đưa lên calendar.",
+        "createdAt": "2026-09-17T07:52:25.054Z"
+      }
+    ],
+    "announcements": [],
+    "lich-hoc": [],
+    "lab-assignments": [],
+    "quiz-updates": [],
+    "hackathon": []
+  }
+}

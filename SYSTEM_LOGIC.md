@@ -159,5 +159,5 @@ Mọi sửa đổi đều lưu audit log; không xoá dấu vết nguồn cũ.
 
 ## 8. Phạm vi prototype CP2
 
-- Chạy thật trong browser mock: slash command, message calendar, chuyển tháng, xem nguồn, admin modal, correction và bốn nhánh quyết định.
-- Giả lập: Discord API/Gateway, Message Content Intent, model extraction, database, permissions và audit persistence.
+- Chạy thật trong browser mock: slash command, message calendar, chuyển tháng, xem nguồn, admin modal, correction, bốn nhánh quyết định và lịch sử chat lưu theo channel trong `codebase/data/mes.json`.
+- Giả lập: Discord API/Gateway, Message Content Intent, model extraction, database deadline, permissions và audit persistence production.

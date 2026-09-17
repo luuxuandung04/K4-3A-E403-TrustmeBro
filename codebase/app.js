@@ -28,6 +28,8 @@ const adminDialog = document.querySelector("#adminDialog");
 const reviewDialog = document.querySelector("#reviewDialog");
 const correctionDialog = document.querySelector("#correctionDialog");
 const toast = document.querySelector("#toast");
+const storedMessages = document.querySelector("#storedMessages");
+const persistenceStatus = document.querySelector("#persistenceStatus");
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
@@ -120,22 +122,92 @@ function renderCalendars() {
   document.querySelectorAll("[data-calendar-card]").forEach(renderCalendarCard);
 }
 
-function appendUserCommand(command) {
+function setPersistenceStatus(label, state = "ready") {
+  persistenceStatus.textContent = label;
+  persistenceStatus.className = `persistence-status ${state === "ready" ? "" : state}`.trim();
+}
+
+async function persistMessage({ content, kind }) {
+  setPersistenceStatus("Đang lưu...", "saving");
+  try {
+    const response = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel: "deadline-hub", content, kind }),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    setPersistenceStatus("Đã lưu vào data/mes.json");
+    return payload.message;
+  } catch (error) {
+    console.error("Không thể lưu tin nhắn", error);
+    setPersistenceStatus("Không lưu được · kiểm tra server", "error");
+    return null;
+  }
+}
+
+function storedMessageElement(message, unsaved = false) {
+  const isBot = message.author?.role === "bot" || message.kind === "bot" || message.kind === "system";
   const article = document.createElement("article");
-  article.className = "discord-message user-command-message";
+  article.className = `discord-message stored-message ${isBot ? "bot-discord-message" : ""} ${unsaved ? "unsaved" : ""}`;
+  const avatar = document.createElement("div");
+  avatar.className = `avatar ${isBot ? "bot-avatar" : "user-avatar"}`;
+  avatar.textContent = message.author?.initials || (isBot ? "D" : "LA");
+  const body = document.createElement("div");
+  body.className = "discord-message-body";
+  const meta = document.createElement("div");
+  meta.className = "chat-meta";
+  const author = document.createElement("strong");
+  author.textContent = message.author?.name || (isBot ? "Deadline Bot" : "Lan Anh");
+  const time = document.createElement("time");
+  const date = new Date(message.createdAt || Date.now());
+  time.textContent = Number.isNaN(date.getTime()) ? now() : new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+  meta.append(author);
+  if (isBot) {
+    const badge = document.createElement("span");
+    badge.textContent = "APP";
+    meta.append(badge);
+  }
+  meta.append(time);
+  const content = document.createElement("p");
+  content.textContent = message.content;
+  if (message.kind === "command") content.className = "persisted-command";
+  body.append(meta, content);
+  article.append(avatar, body);
+  return article;
+}
+
+async function loadMessageHistory() {
+  setPersistenceStatus("Đang tải lịch sử...", "saving");
+  try {
+    const response = await fetch("/api/messages?channel=deadline-hub", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    storedMessages.replaceChildren(...payload.messages.map((message) => storedMessageElement(message)));
+    setPersistenceStatus(`${payload.messages.length} tin đã lưu · data/mes.json`);
+  } catch (error) {
+    console.error("Không thể tải lịch sử", error);
+    setPersistenceStatus("Không tải được · chạy server.js", "error");
+  }
+}
+
+function appendUserCommand(command, unsaved = false) {
+  const article = document.createElement("article");
+  article.className = `discord-message user-command-message ${unsaved ? "unsaved" : ""}`;
   article.innerHTML = `<div class="avatar user-avatar">LA</div><div class="discord-message-body"><div class="chat-meta"><strong>Lan Anh</strong><time>${now()}</time></div><p></p></div>`;
   article.querySelector("p").textContent = command;
   messageFeed.append(article);
   scrollFeedToLatest();
 }
 
-function appendBotText(text, kind = "normal") {
+function appendBotText(text, kind = "normal", persist = true) {
   const article = document.createElement("article");
   article.className = `discord-message bot-discord-message ${kind === "failure" ? "review-message" : ""}`;
   article.innerHTML = `<div class="avatar bot-avatar">D</div><div class="discord-message-body"><div class="chat-meta"><strong>Deadline Bot</strong><span>APP</span><time>${now()}</time></div><p></p></div>`;
   article.querySelector("p").textContent = text;
   messageFeed.append(article);
   scrollFeedToLatest();
+  if (persist) void persistMessage({ content: text, kind: "bot" });
 }
 
 function showTyping() {
@@ -165,12 +237,14 @@ function appendCalendarResponse(prefix = "Đã tổng hợp") {
   messageFeed.append(article);
   renderCalendars();
   scrollFeedToLatest();
+  void persistMessage({ content: `${prefix}: ${deadlines.length} deadline có căn cứ, 1 mục chờ admin xác nhận.`, kind: "bot" });
 }
 
-function runCommand(rawCommand) {
+async function runCommand(rawCommand) {
   const command = rawCommand.trim();
   if (!command) return;
-  appendUserCommand(command);
+  const savedCommand = await persistMessage({ content: command, kind: "command" });
+  appendUserCommand(command, !savedCommand);
   const normalized = command.toLowerCase();
   if (normalized.startsWith("/deadline them")) {
     window.setTimeout(() => openDialog(adminDialog), 180);
@@ -269,11 +343,19 @@ document.addEventListener("click", (event) => {
   if (event.target.matches("dialog")) closeDialog(event.target);
 });
 
-commandComposer.addEventListener("submit", (event) => {
+commandComposer.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const command = commandInput.value;
+  const content = commandInput.value.trim();
+  if (!content) { commandInput.focus(); return; }
   commandInput.value = "";
-  runCommand(command);
+  if (content.startsWith("/")) {
+    await runCommand(content);
+  } else {
+    const savedMessage = await persistMessage({ content, kind: "message" });
+    const fallback = { author: { name: "Lan Anh", initials: "LA", role: "member" }, kind: "message", content, createdAt: new Date().toISOString() };
+    messageFeed.append(storedMessageElement(savedMessage || fallback, !savedMessage));
+    scrollFeedToLatest();
+  }
   commandInput.focus();
 });
 
@@ -303,6 +385,9 @@ document.querySelector("#correctionForm").addEventListener("submit", (event) => 
 messageFeed.addEventListener("scroll", updateFeedScrollButton, { passive: true });
 feedScrollButton.addEventListener("click", () => scrollFeedToLatest());
 document.querySelector("#resetButton").addEventListener("click", () => window.location.reload());
-window.addEventListener("load", () => scrollFeedToLatest("auto"));
+window.addEventListener("load", async () => {
+  await loadMessageHistory();
+  scrollFeedToLatest("auto");
+});
 
 renderCalendars();
