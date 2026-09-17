@@ -38,38 +38,34 @@ def filter_and_route(raw_event: DiscordRawEvent) -> Tuple[bool, Optional[str], O
     # 2. Check channel name or id
     channel_name = WHITELIST_CHANNELS.get(channel_id, f"channel-{channel_id[-4:] if len(channel_id)>=4 else channel_id}")
     
-    # 3. Check author authority
+    # 3. Check author authority — Strict Authority Gate!
     is_author_whitelisted = any(wh.lower() in author_name.lower() for wh in WHITELIST_AUTHORS)
+    if not is_author_whitelisted:
+        return False, f"Bỏ qua: Tác giả '{author_name}' không có thẩm quyền ban hành deadline/lịch họp (Sinh viên/ngoài whitelist)", None
     
     # 4. Check keyword signals
     has_keyword = any(kw in content_lower for kw in KEYWORD_SIGNALS)
     has_time_signal = bool(TIME_REGEX.search(content_lower))
     has_mention_everyone = msg_data.mention_everyone or "@everyone" in content or "@here" in content
 
-    # Decision Rule:
-    # PASS if:
-    # - (is_author_whitelisted and (has_keyword or has_time_signal or has_mention_everyone))
-    # OR
-    # - (has_mention_everyone and (has_keyword or has_time_signal))
-    # OR
-    # - (has_keyword and has_time_signal)
+    # Decision Rule for Authorized Authors:
     passes = False
     pass_reason = ""
 
-    if is_author_whitelisted and (has_keyword or has_time_signal or has_mention_everyone):
+    is_announcements_channel = "announcements" in channel_name.lower() or "ann" in channel_id.lower()
+
+    if is_announcements_channel:
+        passes = True
+        pass_reason = f"Whitelisted author '{author_name}' in #announcements (always pass)"
+    elif has_keyword or has_time_signal or has_mention_everyone:
         passes = True
         pass_reason = f"Whitelisted author '{author_name}' with event signals"
-    elif has_mention_everyone and (has_keyword or has_time_signal):
+    elif any(urgent_kw in content_lower for urgent_kw in ["gia hạn", "dời hạn", "hạn nộp", "lịch họp"]):
         passes = True
-        pass_reason = "Mention @everyone with event/time signals"
-    elif has_keyword and has_time_signal:
+        pass_reason = "Explicit high-priority keyword detected"
+    elif len(content) > 50:
         passes = True
-        pass_reason = "Matched both keyword signals and time/date expressions"
-    else:
-        # Check if contains explicit deadline/meeting words even without explicit time
-        if any(urgent_kw in content_lower for urgent_kw in ["gia hạn", "dời hạn", "hạn nộp", "lịch họp"]):
-            passes = True
-            pass_reason = "Explicit high-priority keyword detected"
+        pass_reason = f"Whitelisted author '{author_name}' with substantial content (P2/P3)"
 
     if not passes:
         return False, "Tin nhắn không chứa tín hiệu sự kiện/deadline (Bỏ qua để tiết kiệm token)", None

@@ -90,6 +90,22 @@ def log_ai_extraction(engine: str, model: str, classification: str, title: str, 
         meta={"Engine": engine, "Model": model, "Time": sched_str, "Confidence": f"{int(confidence*100)}%"}
     )
 
+def log_ai_quota_warning(model: str, error_msg: str):
+    write_log(
+        stage="AI_EXTRACTOR",
+        level="WARN",
+        message="Gemini API hết Quota (429 ResourceExhausted). Tự động chuyển sang Offline Fallback Engine.",
+        meta={"Model": model, "KeyStatus": "QUOTA_EXCEEDED", "Detail": error_msg[:120]}
+    )
+
+def log_ai_key_error(model: str, error_msg: str):
+    write_log(
+        stage="AI_EXTRACTOR",
+        level="ERROR",
+        message="Gemini API Key không hợp lệ hoặc lỗi xác thực. Chuyển sang Fallback Engine.",
+        meta={"Model": model, "KeyStatus": "INVALID_KEY", "Detail": error_msg[:120]}
+    )
+
 def log_validation(is_valid: bool, reason: str, doc_id: Optional[str], conflict_detected: bool, conflict_note: Optional[str] = None):
     if conflict_detected:
         write_log(
@@ -128,6 +144,7 @@ def log_discord_payload(target_channel: str, action: str, details: str = ""):
         message=f"Sinh payload giao diện cho #{target_channel}",
         meta={"Action": action, "Details": details}
     )
+
 
 def get_recent_logs(limit: int = 100) -> List[str]:
     """Returns the most recent log lines from memory or disk"""

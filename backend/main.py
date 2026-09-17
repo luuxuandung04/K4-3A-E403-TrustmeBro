@@ -59,7 +59,21 @@ def process_discord_event(event: DiscordRawEvent) -> Dict[str, Any]:
     Discord -> Backend Webhook:
     Processes a raw MESSAGE_CREATE event through the entire 6-stage pipeline.
     """
-    # 0. Log incoming raw event
+    # 0. Log incoming raw event and persist to channel json file
+    ch_clean = event.d.channel_id.replace("chan_", "").replace("#", "").strip()
+    save_channel_message(ch_clean, {
+        "id": event.d.id,
+        "channel": ch_clean,
+        "author": {
+            "name": event.d.author.username,
+            "role": "Giảng viên" if any(k in event.d.author.username.lower() for k in ["thay", "hoang", "minh anh", "btc"]) else "Học viên",
+            "avatar": event.d.author.username[:2].upper(),
+            "type": "teacher" if any(k in event.d.author.username.lower() for k in ["thay", "hoang", "minh anh", "btc"]) else "student"
+        },
+        "content": event.d.content,
+        "timestamp": event.d.timestamp[:16].replace("T", " "),
+        "type": "chat"
+    })
     pipeline_logger.log_event_received(
         channel_id=event.d.channel_id,
         author_name=event.d.author.username,
@@ -84,10 +98,11 @@ def process_discord_event(event: DiscordRawEvent) -> Dict[str, Any]:
         }
 
     # 2. AI Semantic Extraction (Zero-hallucination)
+    from backend.services import ai_extractor
     ai_output = extract_semantics(ai_input)
     pipeline_logger.log_ai_extraction(
-        engine="Gemini / Deterministic Fallback",
-        model=GEMINI_MODEL,
+        engine=ai_extractor.LAST_ENGINE_USED,
+        model=GEMINI_MODEL if "Gemini" in ai_extractor.LAST_ENGINE_USED else "Offline Rule Engine",
         classification=ai_output.classification.type,
         title=ai_output.content.title,
         schedule=ai_output.schedule.model_dump(),
@@ -133,6 +148,9 @@ def process_discord_event(event: DiscordRawEvent) -> Dict[str, Any]:
     return {
         "status": "PROCESSED",
         "reason": filter_reason,
+        "engine_used": ai_extractor.LAST_ENGINE_USED,
+        "key_status": ai_extractor.LAST_KEY_STATUS,
+        "key_warning": ai_extractor.LAST_ERROR_MSG,
         "raw_event": event.model_dump(),
         "ai_input": ai_input.model_dump(),
         "ai_output": ai_output.model_dump(),
@@ -179,6 +197,100 @@ def get_event(event_id: str) -> Dict[str, Any]:
     if not doc:
         raise HTTPException(status_code=404, detail="Event not found")
     return doc.model_dump(by_alias=True)
+
+# ============================================================================
+# PERSISTENT CHANNELS & DEADLINES API (Fix F5 data loss)
+# ============================================================================
+from backend.db.json_store import (
+    get_channel_messages,
+    save_channel_message,
+    get_all_channels_messages,
+    get_stored_deadlines
+)
+
+@app.get("/deadlines")
+def list_deadlines() -> List[Dict[str, Any]]:
+    """Returns persistent deadlines from data/deadlines.json"""
+    return get_stored_deadlines()
+
+@app.post("/deadlines")
+def create_manual_deadline(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Manually add or update a deadline and persist to data/deadlines.json and data/events.json"""
+    from backend.models.event_doc import EventDocument, EventSource, EventSystem
+    from backend.models.ai_io import (
+        AIMessageAuthor, AIClassification, AIContent, AISchedule, AITarget
+    )
+    from datetime import datetime, timezone
+
+    topic = item.get("assignment_code") or item.get("id") or f"manual_{int(datetime.now().timestamp())}"
+    due_date = item.get("due_date") or item.get("date") or "2026-09-17"
+    due_time = item.get("due_time") or item.get("time") or "23:59"
+    iso_str = item.get("iso_deadline") or f"{due_date}T{due_time}:00+07:00"
+
+    guild_id = "123456789012345678"
+    chan_id = f"chan_{item.get('source_channel', 'announcements').replace('#', '')}"
+    msg_id = item.get("source_message_id", f"manual_{int(datetime.now().timestamp())}")
+    msg_url = f"https://discord.com/channels/{guild_id}/{chan_id}/{msg_id}"
+
+    doc = EventDocument(
+        id=f"evt_{topic}",
+        source=EventSource(
+            guild_id=guild_id,
+            channel_id=chan_id,
+            channel_name=item.get("source_channel", "announcements").replace("#", ""),
+            message_id=msg_id,
+            message_url=msg_url,
+            author=AIMessageAuthor(id="manual_admin", name=item.get("author_name", "Admin")),
+            created_at=datetime.now(timezone.utc).isoformat()
+        ),
+        classification=AIClassification(
+            type="DEADLINE",
+            importance="HIGH" if item.get("is_important", True) else "NORMAL",
+            is_relevant=True,
+            confidence=1.0
+        ),
+        content=AIContent(
+            title=item.get("title", "Bài tập thủ công"),
+            summary=item.get("quote", "Admin nhập thủ công.")
+        ),
+        schedule=AISchedule(
+            deadline=iso_str,
+            time_precision="DEADLINE_ONLY"
+        ),
+        target=AITarget(course="AI Batch 04"),
+        system=EventSystem(
+            status="PROCESSED",
+            created_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(timezone.utc).isoformat(),
+            topic_key=topic,
+            notification_priority="P1"
+        )
+    )
+    store = get_store()
+    store.insert(doc)
+    return item
+
+@app.get("/channels")
+def list_all_channels() -> Dict[str, List[Dict[str, Any]]]:
+    """Returns persistent message history for all channels (data/channels/*.json)"""
+    return get_all_channels_messages()
+
+@app.get("/channels/{channel_name}/messages")
+def get_channel_msg_list(channel_name: str) -> List[Dict[str, Any]]:
+    """Returns stored messages for a specific channel"""
+    return get_channel_messages(channel_name)
+
+@app.post("/channels/{channel_name}/messages")
+def append_channel_message(channel_name: str, message: Dict[str, Any]) -> Dict[str, Any]:
+    """Appends and persists a new message to data/channels/{channel_name}.json"""
+    return save_channel_message(channel_name, message)
+
+@app.post("/admin/reset-demo-data")
+def api_reset_demo_data() -> Dict[str, Any]:
+    """Cleans up all test debris, temp files, and restores pristine demo dataset"""
+    from backend.services.demo_reset import reset_all_demo_data
+    return reset_all_demo_data()
+
 
 # Mount codebase as static website
 from pathlib import Path

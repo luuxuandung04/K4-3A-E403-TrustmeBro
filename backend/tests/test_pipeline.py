@@ -100,3 +100,27 @@ def test_fastapi_schedule_digest():
     assert "view_model" in data
     assert "discord_payload" in data
     assert len(data["discord_payload"]["embeds"]) == 1
+
+def test_urgent_extension_updates_data():
+    urgent_payload = DiscordRawEvent(
+        t="MESSAGE_CREATE",
+        d=RawMessageData(
+            id="test_urgent_msg_001",
+            guild_id="123456789012345678",
+            channel_id="chan_announcements",
+            author=RawAuthor(id="1029384756", username="ThayHoang_GV"),
+            content="Thông báo khẩn cấp lớp 3A: Do sự cố nộp bài, Thầy gia hạn nộp bài Lab 2 thêm 2 tiếng đến 02:00 sáng mai 18/09/2026. Link nộp bài giữ nguyên: https://forms.gle/lab2-submit-k4",
+            timestamp="2026-09-17T22:00:00.000Z",
+            mention_everyone=True
+        )
+    )
+    res = client.post("/events/discord", json=urgent_payload.model_dump())
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "PROCESSED"
+    
+    # Check old Lab 2 event is marked SUPERSEDED
+    store = get_store()
+    old_doc = store.get_by_id("evt_lab-2")
+    if old_doc:
+        assert old_doc.system.status == "SUPERSEDED"

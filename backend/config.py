@@ -19,11 +19,10 @@ LOG_FILE = LOGS_DIR / "pipeline.log"
 DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh"
 
 # Whitelist Channels (by ID or channel_name)
+# NOTE: deadline-hub is OUTPUT only — do NOT include here to avoid feedback loops
 WHITELIST_CHANNELS = {
     "99887766554433": "dự-án-ai",
     "chan_announcements": "announcements",
-    "chan_deadline_hub": "deadline-hub",
-    "chan_deadline-hub": "deadline-hub",
     "chan_lab_assignments": "lab-assignments",
     "chan_lab-assignments": "lab-assignments",
     "chan_quiz_updates": "quiz-updates",
@@ -34,16 +33,27 @@ WHITELIST_CHANNELS = {
 }
 
 # Whitelist Teacher/TA Author IDs or Names
-WHITELIST_ROLES = ["Giảng viên", "Trợ giảng", "Admin", "BTC Hackathon", "Teacher", "TA"]
-WHITELIST_AUTHORS = ["ThayDong_Tech", "Thầy Hoàng", "Cô Minh Anh", "TA Tuấn", "BTC Hackathon"]
+WHITELIST_ROLES = ["Giảng viên", "Trợ giảng", "Admin", "BTC Hackathon", "Teacher", "TA", "GV"]
+WHITELIST_AUTHORS = ["ThayDong_Tech", "Thầy Hoàng", "Cô Minh Anh", "TA Tuấn", "BTC Hackathon", "ThayHoang_GV", "CoMinhAnh_GV", "Admin BTC", "Giảng viên", "Trợ giảng", "Teacher"]
 
 # Candidate Gate Keywords
 KEYWORD_SIGNALS = [
+    # Deadline & submission
     "deadline", "hạn nộp", "nộp bài", "nộp trước", "gia hạn", "dời hạn",
-    "họp", "meeting", "meet", "lịch học", "buổi học", "quiz", "lab", "checkpoint",
+    "đóng form", "mở form", "link nộp",
+    # Meeting & schedule
+    "họp", "meeting", "meet", "lịch học", "buổi học", "thay đổi phòng", "đổi lịch",
+    # Assignments
+    "quiz", "lab", "checkpoint", "bài tập", "bài tập mới", "assignment",
+    "capstone", "project", "seminar", "workshop",
+    # Time signals
     "thứ hai", "thứ ba", "thứ tư", "thứ năm", "thứ sáu", "thứ bảy", "chủ nhật",
     "ngày mai", "hôm nay", "tối nay", "sáng mai", "chiều mai", "tuần này", "tuần sau",
-    "@everyone", "@here"
+    # Mentions
+    "@everyone", "@here",
+    # General announcements (P2 — thông báo thường)
+    "nhắc nhở", "lưu ý", "chú ý", "thông báo", "cập nhật", "tài liệu",
+    "quan trọng", "khẩn cấp", "gấp", "đột xuất",
 ]
 
 # AI Configuration

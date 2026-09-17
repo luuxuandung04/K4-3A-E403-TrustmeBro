@@ -30,6 +30,8 @@ def aggregate_events(
     aggregated_items: List[AggregatedItem] = []
 
     for doc in all_events:
+        if getattr(doc.system, "status", None) in ("SUPERSEDED", "CANCELLED"):
+            continue
         # Determine effective datetime
         target_iso = (
             doc.schedule.deadline or
