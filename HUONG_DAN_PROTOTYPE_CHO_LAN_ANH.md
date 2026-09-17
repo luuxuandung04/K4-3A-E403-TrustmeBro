@@ -45,9 +45,10 @@ Trên giao diện prototype, Lan Anh cần gắn các nhãn **HAX Badge** trực
   > • **Link form nộp bài:** [https://forms.gle/lab2-submit](https://forms.gle/lab2-submit)  
   > • **Căn cứ xác thực:** [Thông báo #12 của Thầy Hoàng lúc 14:00 15/9 trong kênh `#announcements`](#)  
   > *(Nút bấm: [🔗 Mở Form Nộp] | [⚠️ Báo sai/Cần hỗ trợ])*
-* **Nhãn HAX gắn kèm:**  
-  - 🏷️ `HAX G1 (Làm rõ khả năng)`: Trả lời đúng phạm vi deadline/logistics.  
-  - 🏷️ `HAX G2 (Minh bạch căn cứ)`: Trích dẫn rõ timestamp, người ra thông báo và link tin nhắn gốc.
+* **Nhãn HAX gắn kèm:**
+  - 🏷️ `HAX G1 (Make clear what the system can do)`: Nêu đúng phạm vi deadline/logistics.
+  - 🏷️ `HAX G2 (Make clear how well the system can do what it can do)`: Hiển thị mức tin cậy/khả năng sai.
+  - 🏷️ `HAX G11 (Make clear why the system did what it did)`: Trích dẫn timestamp, người ra thông báo và tin nhắn gốc để giải thích kết quả.
 
 ---
 
@@ -76,9 +77,10 @@ Trên giao diện prototype, Lan Anh cần gắn các nhãn **HAX Badge** trực
   * **Bot phản hồi:**
     > 🚫 **Ngoài phạm vi hỗ trợ:**  
     > Bot không có quyền hạn can thiệp vào hệ thống điểm danh. Bạn vui lòng quét mã QR tại lớp hoặc liên hệ trực tiếp Giảng viên/TA nhé!
-* **Nhãn HAX gắn kèm:**  
-  - 🏷️ `HAX G1 (Nêu rõ giới hạn hệ thống)`  
-  - 🏷️ `HAX G8 (Hỗ trợ gạt bỏ dễ dàng / Kích hoạt Fallback tag con người)`.
+* **Nhãn/nguyên tắc gắn kèm:**
+  - 🏷️ `HAX G1 (Nêu rõ giới hạn hệ thống)`.
+  - 🏷️ `HAX G2 (Nêu rõ hệ thống không đủ độ tin cậy để trả lời)`.
+  - 🏷️ `PAIR Errors + Graceful Failure (Dừng an toàn và chỉ đường chuyển sang con người)`.
 
 ---
 
@@ -86,7 +88,7 @@ Trên giao diện prototype, Lan Anh cần gắn các nhãn **HAX Badge** trực
 * **Tương tác:** Dưới mỗi câu trả lời của Bot luôn có nút `[⚠️ Báo sai / Cần hỗ trợ]`.
 * **Khi học viên bấm vào:** Mở một hộp thoại nhỏ (Modal) hoặc bot phản hồi:
   > *"Cảm ơn bạn đã phản hồi. Bot đã ghi nhận và gắn cờ (flag) tin nhắn này tới TA trực ca `@NguyenVanA`. TA sẽ kiểm tra và đính chính trong ít phút!"*
-* **Nguyên tắc PAIR:** Hỗ trợ vòng phản hồi sửa sai (Feedback & Error Recovery).
+* **Nguyên tắc:** `HAX G9 (Support efficient correction)` kết hợp `PAIR Feedback & Control` để người dùng sửa sai và chuyển quyền cho TA.
 
 ---
 
@@ -143,7 +145,7 @@ Lan Anh có thể dùng trực tiếp bảng dữ liệu mẫu sau để nạp v
 - Giao diện thiết kế theo phong cách Discord Dark Mode:
   - Cột trái: Kênh chat `#hoi-dap-logistics`, `#announcements`.
   - Khung giữa: Khung chat mô phỏng với tin nhắn học viên + tin nhắn bot + các nút bấm tương tác.
-  - Cột phải: **Bảng điều khiển Giám khảo (HAX Inspector)** gồm 4 nút bấm chạy nhanh 4 kịch bản (Scenario 1, 2, 3, 4) để khi quay video màn hình chỉ mất 30 giây là trình diễn xong toàn bộ luồng!
+  - Cột phải: **Bảng điều khiển Giám khảo (HAX Inspector)** gồm 4 nút bấm chạy nhanh 4 kịch bản (Scenario 1, 2, 3, 4), dấu vết quyết định và bộ đếm coverage để quay video màn hình trong 30–45 giây.
 - Lan Anh có thể tự do xây dựng các file giao diện trong thư mục `codebase/` bằng HTML/CSS/JS tĩnh hoặc framework tuỳ chọn.
 
 ### Cách 2: Thiết kế Mockup Figma tương tác
@@ -157,6 +159,6 @@ Lan Anh có thể dùng trực tiếp bảng dữ liệu mẫu sau để nạp v
 - [ ] Bấm thử Luồng 2 (Clarify): Hỏi mơ hồ -> Hiện 3 nút chọn bài -> Bấm nút ra kết quả.
 - [ ] Bấm thử Luồng 3 (Not found): Hỏi bài chưa có nguồn -> Bot từ chối bịa + có nút Tag TA.
 - [ ] Bấm thử Luồng 4 (Feedback): Bấm nút Báo sai -> Hiện xác nhận đã báo cho TA.
-- [ ] Các nhãn `HAX G1`, `HAX G2`, `HAX G8`, `HAX G10` hiển thị rõ ràng trên giao diện.
+- [ ] Các nhãn `HAX G1`, `HAX G2`, `HAX G9`, `HAX G10`, `HAX G11` hiển thị đúng vị trí trên giao diện.
 - [ ] Đội trưởng Xuân Dũng thực hiện `git add .`, `git commit` và `git push origin main`.
 - [ ] Quay 1 video màn hình 30-45 giây thao tác bấm 4 luồng để nộp kèm form CP2.

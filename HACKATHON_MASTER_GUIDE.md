@@ -14,7 +14,7 @@
 | Họ và Tên | Mã Sinh Viên | GitHub Username | Vai trò chính | Phần việc đảm nhiệm cụ thể trong dự án |
 |---|---|---|---|---|
 | **Lưu Xuân Dũng** *(Đội trưởng)* | **2A202602746** | `luuxuandung04` | **Team Lead · AI Engineer** | • Nộp form cả 5 checkpoint bằng mã SV `2A202602746` đúng hạn.<br>• Quản trị Repo GitHub mới, git flow, commit history (R7).<br>• Thiết kế Prompt hệ thống, Pipeline RAG và Guardrails chống bịa đặt (Zero Hallucination).<br>• Thuyết trình chính tại CP6 và điều phối trả lời Q&A. |
-| **Trương Thị Lan Anh** | **2A202602451** | `SxAinsworth` | **System · Prototype** | • Xây dựng và tích hợp Clickable Prototype / Discord Bot cho CP2.<br>• Tích hợp webhook thông báo và luồng xử lý có điều kiện (Conditional Retrieval).<br>• Thể hiện các điểm chạm nguyên tắc HAX/PAIR (G1, G2, G8, G10) trực quan trên giao diện.<br>• Thiết kế Slide 6 trang PDF (`demo-slides.pdf`) chuẩn rubric cho CP5. |
+| **Trương Thị Lan Anh** | **2A202602451** | `SxAinsworth` | **System · Prototype** | • Xây dựng và tích hợp Clickable Prototype / Discord Bot cho CP2.<br>• Tích hợp webhook thông báo và luồng xử lý có điều kiện (Conditional Retrieval).<br>• Thể hiện các điểm chạm nguyên tắc HAX/PAIR (G1, G2, G9, G10, G11) trực quan trên giao diện.<br>• Thiết kế Slide 6 trang PDF (`demo-slides.pdf`) chuẩn rubric cho CP5. |
 | **Nguyễn Duy Khánh** | **2A202602736** | `nguyenkhanhbh01989` | **Product · UX/UI · Spec** | • Phân tích dữ liệu khảo sát người dùng (N = 21), trích xuất bằng chứng định lượng & định tính (R1).<br>• Thiết kế chuẩn format câu trả lời của Bot và tài liệu bàn giao `spec.md` 9 phần chuẩn.<br>• Điều phối quy trình thử nghiệm người dùng 5 nhịp (R6 bonus +8đ). |
 | **Tạ Quang Dũng** | **2A202602588** | `taquangdung123` | **Data · QA · Golden Set** | • Thu thập log thông báo chính thức, làm sạch dữ liệu nguồn sự thật.<br>• Xây dựng bộ test case Golden Set ≥20 cases phủ 4 lớp chỗ khó (R4).<br>• Viết script đo kiểm tự động và đánh giá độ chuẩn xác, đối chiếu Quality Bar (CP3 & CP4). |
 
@@ -143,8 +143,8 @@ Nhóm nên chọn **Track B1 — Tối ưu Trợ lý Discord (Hỏi Logistics & 
 * **Bộ quy tắc phản hồi (Guardrails):**
   - **FOUND (Đủ căn cứ):** Trả lời trực tiếp hạn chót/link + đính kèm trích dẫn (link tin nhắn gốc/kênh #announcement).
   - **CLARIFY (Thiếu dữ kiện):** Phản hồi nhanh yêu cầu học viên chọn đúng đợt bài cần tra cứu (HAX G10).
-  - **NOT FOUND (Chưa có thông báo):** Tuyệt đối không bịa đặt (Zero Hallucination), thông báo chưa công bố và đề xuất tag/liên hệ TA hỗ trợ (HAX G1, G8).
-* **Automation Mechanism:** Conditional Retrieval kết hợp kiểm tra tính hợp lệ của liên kết (Link Validity Check).
+- **NOT FOUND (Chưa có thông báo):** Tuyệt đối không bịa đặt (Zero Hallucination), nêu rõ giới hạn/độ bất định và đề xuất tag TA (HAX G1, G2; PAIR Graceful Failure).
+* **Mức tự động hóa:** Augment; Conditional Retrieval và Link Validity Check là cơ chế nội bộ, còn học viên/TA giữ quyết định cuối cùng.
 
 ### 🟧 04 · NGƯỜI THỬ & PHÂN CÔNG
 * **Willing users:** Tối thiểu 2–3 học viên ngoài nhóm sẵn sàng test trên Discord.
@@ -199,14 +199,15 @@ Loại: [x] Tối ưu tính năng có sẵn
   2. KHÔNG can thiệp vào cơ sở dữ liệu chấm điểm hay sửa quyền nộp bài của học viên.
   3. KHÔNG tự động gửi tin nhắn riêng (DM) làm phiền học viên.
 - Mức prototype nhắm tới: [x] Mock — Phần giao diện chat và dữ liệu thông báo được mock; phần phân loại intent, trích xuất căn cứ và quyết định fallback được gọi AI thật.
-- Automation: [x] Conditional — Tự động trả lời nếu độ tin cậy căn cứ ≥95%; nếu dưới 95% hoặc không tìm thấy nguồn thì chuyển tiếp tag TA vì báo sai deadline gây thiệt hại điểm số trực tiếp.
+- Automation: [x] Augment — Bot tìm và trình bày căn cứ; người học xác nhận trước khi nộp và TA quyết định khi thiếu nguồn/bị báo sai. Conditional Retrieval là cơ chế nội bộ vì báo sai deadline gây thiệt hại điểm số trực tiếp.
 - §4b. Nguyên tắc HAX/PAIR áp dụng:
   | Nguyên tắc | Áp cụ thể vào đâu trong prototype |
   |---|---|
   | **HAX G1** (Làm rõ khả năng) | Dòng chào đầu: "Tôi hỗ trợ tra cứu deadline và thông báo chính thức của lớp 3A". |
-  | **HAX G2** (Làm rõ độ tin cậy) | Kèm theo trích dẫn: "Dựa theo Thông báo #12 của Thầy/Cô lúc 14:00 15/9". |
-  | **HAX G10** (Thu hẹp khi nghi ngờ) | Khi câu hỏi thiếu tên bài: Hỏi lại "Bạn muốn tra cứu hạn Lab 2 hay Quiz 1?" |
-  | **HAX G8** (Gạt bỏ dễ dàng) | Có nút "Bỏ qua / Nhờ TA trả lời trực tiếp" ngay dưới câu trả lời của Bot. |
+| **HAX G2** (Làm rõ hệ thống làm tốt tới đâu) | Hiển thị trạng thái mức tin cậy cao/thấp/không đủ căn cứ trên từng kết quả. |
+| **HAX G10** (Thu hẹp khi nghi ngờ) | Khi câu hỏi thiếu tên bài: Hỏi lại "Bạn muốn tra cứu hạn Lab 2 hay Quiz 1?" |
+| **HAX G11** (Giải thích vì sao hệ thống hành động) | Kèm thông báo nguồn, timestamp và lý do chọn bản mới nhất. |
+| **HAX G9** (Hỗ trợ sửa sai hiệu quả) | Có nút "Báo sai / Sửa kết quả" để gắn cờ và chuyển toàn bộ ngữ cảnh cho TA. |
 
 ## §5. Kiểu lỗi — 4 lớp chỗ khó & Kịch bản rủi ro (≥8)
 | # | Tình huống cụ thể | Lớp chỗ khó | Hành vi mong muốn của AI | Nguyên tắc |
