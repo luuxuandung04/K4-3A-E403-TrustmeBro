@@ -140,9 +140,7 @@ flowchart TD
 * **Chiều chất lượng định nghĩa:**
   1. *Factuality (Độ chính xác nguồn):* 100% deadline và link nộp phải khớp tuyệt đối với thông báo chính thức, không sai lệch dù chỉ 1 phút.
   2. *Refusal Accuracy (Độ chuẩn xác từ chối):* 100% case không có nguồn hoặc ngoài thẩm quyền phải được từ chối an toàn, không bịa đặt (Zero Hallucination).
-* **Cấu trúc Golden Set CP3 (20 cases, lưu trữ tại `eval/cp3/golden_set_cp3.json`):**
-  - 8 cases Normal · 8 cases Hard · 4 cases Rare; phủ 4 lớp chỗ khó (`source_truth`, `ambiguity`, `out_of_authority`, `domain`), ≥10 case có nguồn từ Discord pack kèm `msg_id`.
-* **Lượt đo CP3 Run-01 (AI thật qua NVIDIA NIM API, model `deepseek-ai/deepseek-v4-flash-0731`, bằng chứng tại `eval/cp3/RUN-01-REPORT.md` + `run-01.json` + `run-01.csv`): 19 PASS / 1 FAIL, đạt 95%, 0 case bịa/sai deadline** — case FAIL duy nhất: `GS-013` (model trả `REJECTED` thay vì `IGNORED_OUT_OF_SCOPE` vì không có nguồn chính thức trong kênh được phép). Kết quả được giữ nguyên, kể cả case FAIL.
+* **Lượt đo CP3 Run-01 (AI thật qua NVIDIA NIM API, model `deepseek-ai/deepseek-v4-flash-0731`): 19 PASS / 1 FAIL, đạt 95%, 0 case bịa/sai deadline** — case FAIL duy nhất: `GS-013` (model trả `REJECTED` thay vì `IGNORED_OUT_OF_SCOPE` vì không có nguồn chính thức trong kênh được phép). Kết quả được giữ nguyên, kể cả case FAIL.
 * **Cấu trúc Golden Set CP4 (35 cases + 2 seed ngữ cảnh trong `eval/golden_set.json`, đo bằng `eval/run_eval.py`):**
   - 6 Bẫy căn cứ & Số nhiễu · 6 Mơ hồ & Quy đổi thời gian · 5 Ngoài thẩm quyền & Lọc nhiễu · 6 Đặc thù miền & Phạm vi lớp · 7 Adversarial Zero-Hallucination · 5 Cập nhật đè & Chuỗi đa tin nhắn.
 * **Lượt đo CP4 Stress Test (AI thật Gemini 2.5 Flash qua `eval/run_eval.py`, báo cáo tại `eval/run_results.md`): 6/35 PASS = 17.14%, 5 ca bịa/sai deadline (ID 04, 08, 18, 26, 35) → CHƯA ĐẠT Quality Bar.** Kết quả được công khai đầy đủ, không chỉnh sửa để làm đẹp số liệu.

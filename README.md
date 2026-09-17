@@ -76,7 +76,7 @@
 
 - [x] **CP1 (19:30 · 16/9):** Nộp Form CP1 (Canvas 4 ô, Repo Public, Khai báo 2 Willing users).
 - [x] **CP2 (21:00 · 16/9):** Working Mock `#deadline-hub` + calendar bấm thông suốt 4 luồng; đã cập nhật `spec.md` §4/§6.
-- [x] **CP3 (16:00 · 17/9):** Video 30s AI chạy thật + Bảng đo lượt 1 trên Golden Set 20 case qua NVIDIA NIM: **19 PASS / 1 FAIL = 95%, 0 case bịa deadline** (bằng chứng tại `eval/cp3/`).
+- [x] **CP3 (16:00 · 17/9):** Video 30s AI chạy thật + Bảng đo lượt 1 trên Golden Set 20 case qua NVIDIA NIM: **19 PASS / 1 FAIL = 95%, 0 case bịa deadline**.
 - [x] **CP4 (21:00 · 17/9):** Chốt spec.md hoàn chỉnh + Khóa Quality Bar **≥85%, 0% bịa/sai deadline**; công khai phần chưa hoàn thành. Lượt stress test mới (35 case, Gemini) đạt 17.14% → **chưa đạt bar**, đã ghi kế hoạch remediation trong `spec.md` §7–§8 (không giấu số liệu, không nâng bar).
 - [ ] **CP5 (13:00 · 18/9):** demo-slides.pdf 6 trang + Video backup + Validation log R6.
 - [ ] **CP6 (17:30 · 18/9):** Thuyết trình Vòng cụm E403 & Chung kết.
