@@ -55,6 +55,7 @@ def aggregate_events(
                 date=date_str,
                 time=time_str,
                 title=doc.content.title,
+                summary=doc.content.summary,
                 source_url=doc.source.message_url
             ))
 

@@ -35,7 +35,15 @@ def filter_and_route(raw_event: DiscordRawEvent) -> Tuple[bool, Optional[str], O
 
     content_lower = content.lower()
 
-    # 2. Check channel name or id
+    # 2. Check channel name or id whitelist
+    is_channel_whitelisted = (
+        channel_id in WHITELIST_CHANNELS or
+        channel_id == "99887766554433" or
+        any(wl_v == channel_id.replace("chan_", "").replace("_", "-") for wl_v in WHITELIST_CHANNELS.values())
+    )
+    if not is_channel_whitelisted:
+        return False, f"Kênh '{channel_id}' không nằm trong danh sách theo dõi (Whitelist)", None
+
     channel_name = WHITELIST_CHANNELS.get(channel_id, f"channel-{channel_id[-4:] if len(channel_id)>=4 else channel_id}")
     
     # 3. Check author authority

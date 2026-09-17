@@ -35,7 +35,7 @@ WHITELIST_CHANNELS = {
 
 # Whitelist Teacher/TA Author IDs or Names
 WHITELIST_ROLES = ["Giảng viên", "Trợ giảng", "Admin", "BTC Hackathon", "Teacher", "TA"]
-WHITELIST_AUTHORS = ["ThayDong_Tech", "Thầy Hoàng", "Cô Minh Anh", "TA Tuấn", "BTC Hackathon"]
+WHITELIST_AUTHORS = ["ThayDong_Tech", "ThayHoang_Tech", "Thầy Hoàng", "TA_", "TA_NguyenVanA", "Cô Minh Anh", "TA Tuấn", "BTC Hackathon"]
 
 # Candidate Gate Keywords
 KEYWORD_SIGNALS = [

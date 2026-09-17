@@ -1,0 +1,716 @@
+[
+  {
+    "_id": "evt_1122334455667701",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667701",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667701",
+      "author": {
+        "id": "user_01",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-17T14:19:00.000Z"
+    },
+    "classification": {
+      "type": "MEETING",
+      "importance": "HIGH",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Họp chốt tiến độ dự án AI",
+      "summary": "Chào các bạn, tối nay 20:00 chúng ta có lịch họp online chốt tiến độ dự án AI nhé. Link meet mình sẽ gửi sau."
+    },
+    "schedule": {
+      "start_time": "2026-09-17T20:00:00+07:00",
+      "end_time": null,
+      "deadline": null,
+      "time_precision": "START_TIME_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667702",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667702",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667702",
+      "author": {
+        "id": "user_02",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-15T14:00:00.000Z"
+    },
+    "classification": {
+      "type": "DEADLINE",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Lab 2 · Prompt Engineering & LLM Basics",
+      "summary": "Thông báo chính thức: Hạn nộp bài Lab 2 Prompt Engineering chốt lúc 23:59 ngày 17/9/2026. Các bạn nộp qua Google Form https://forms.gle/lab2-submit-k4."
+    },
+    "schedule": {
+      "start_time": null,
+      "end_time": null,
+      "deadline": "2026-09-17T23:59:00+07:00",
+      "time_precision": "DEADLINE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667703",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667703",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667703",
+      "author": {
+        "id": "user_03",
+        "name": "TA_NguyenVanA"
+      },
+      "created_at": "2026-09-14T09:00:00.000Z"
+    },
+    "classification": {
+      "type": "DEADLINE",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Quiz 1 · Transformer Architecture",
+      "summary": "Cổng làm bài Quiz 1 Transformer Architecture đã mở trên VLearn. Hạn chót nộp bài trước 21:00 ngày 19/9/2026. Link thi: https://vlearn.edu.vn/courses/ai-k4/quiz-1"
+    },
+    "schedule": {
+      "start_time": null,
+      "end_time": null,
+      "deadline": "2026-09-19T21:00:00+07:00",
+      "time_precision": "DEADLINE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667704",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667704",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667704",
+      "author": {
+        "id": "user_04",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-16T10:00:00.000Z"
+    },
+    "classification": {
+      "type": "DEADLINE",
+      "importance": "HIGH",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Lab 2 · Gia hạn nộp bài Prompt Engineering",
+      "summary": "THÔNG BÁO GIA HẠN: Do nhiều bạn đề xuất, deadline nộp Lab 2 được gia hạn chính thức sang 23:59 ngày 17/9/2026."
+    },
+    "schedule": {
+      "start_time": null,
+      "end_time": null,
+      "deadline": "2026-09-17T23:59:00+07:00",
+      "time_precision": "DEADLINE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667705",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667705",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667705",
+      "author": {
+        "id": "user_05",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-16T08:00:00.000Z"
+    },
+    "classification": {
+      "type": "CLASS",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Lab 2 · Prompt Engineering & LLM Basics",
+      "summary": "Lịch ca thực hành Lab 2 lớp 3A diễn ra lúc 08:30 sáng mai thứ Năm ngày 17/9 tại phòng máy E403."
+    },
+    "schedule": {
+      "start_time": "2026-09-18T08:30:00+07:00",
+      "end_time": null,
+      "deadline": null,
+      "time_precision": "START_TIME_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": "AI Batch 04"
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667706",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667706",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667706",
+      "author": {
+        "id": "user_06",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-16T18:00:00.000Z"
+    },
+    "classification": {
+      "type": "DEADLINE",
+      "importance": "HIGH",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Mini Hackathon · Checkpoint 2",
+      "summary": "Nhắc nhở BTC Mini Hackathon: Hạn chót nộp bài Checkpoint 2 là 21:00 ngày 16/9/2026. Các nhóm nộp sau 21:00 sẽ bị tính 0 điểm mốc này."
+    },
+    "schedule": {
+      "start_time": null,
+      "end_time": null,
+      "deadline": "2026-09-16T21:00:00+07:00",
+      "time_precision": "DEADLINE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667707",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667707",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667707",
+      "author": {
+        "id": "user_07",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-17T12:00:00.000Z"
+    },
+    "classification": {
+      "type": "MEETING",
+      "importance": "HIGH",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "nhom ai batch04 hop luc 20h toi nay tren meet nha mng",
+      "summary": "nhom ai batch04 hop luc 20h toi nay tren meet nha mng"
+    },
+    "schedule": {
+      "start_time": "2026-09-17T20:00:00+07:00",
+      "end_time": null,
+      "deadline": null,
+      "time_precision": "START_TIME_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": "AI Batch 04"
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667713",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667713",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667713",
+      "author": {
+        "id": "user_13",
+        "name": "TA_NguyenVanA"
+      },
+      "created_at": "2026-09-17T10:00:00.000Z"
+    },
+    "classification": {
+      "type": "MEETING",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Lịch sync 1-1 với Mentor diễn ra vào 14:00 chiều mai ng",
+      "summary": "Lịch sync 1-1 với Mentor diễn ra vào 14:00 chiều mai ngày 18/9/2026."
+    },
+    "schedule": {
+      "start_time": "2026-09-18T14:00:00+07:00",
+      "end_time": null,
+      "deadline": null,
+      "time_precision": "START_TIME_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667714",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667714",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667714",
+      "author": {
+        "id": "user_14",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-17T18:00:00.000Z"
+    },
+    "classification": {
+      "type": "MEETING",
+      "importance": "HIGH",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "GẤP KHẨN CẤP: Dời lịch họp tối nay sang 21:00 do Thầy b",
+      "summary": "GẤP KHẨN CẤP: Dời lịch họp tối nay sang 21:00 do Thầy bận đột xuất."
+    },
+    "schedule": {
+      "start_time": "2026-09-17T21:00:00+07:00",
+      "end_time": null,
+      "deadline": null,
+      "time_precision": "START_TIME_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667715",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667715",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667715",
+      "author": {
+        "id": "user_15",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-15T15:00:00.000Z"
+    },
+    "classification": {
+      "type": "DEADLINE",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Lab 2 · Prompt Engineering & LLM Basics",
+      "summary": "Lưu ý bài Lab 2: Chỉ chấp nhận nộp file notebook .ipynb hoặc link GitHub public trước hạn 23:59 ngày 17/9/2026."
+    },
+    "schedule": {
+      "start_time": null,
+      "end_time": null,
+      "deadline": "2026-09-17T23:59:00+07:00",
+      "time_precision": "DEADLINE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667716",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667716",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667716",
+      "author": {
+        "id": "user_16",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-17T09:00:00.000Z"
+    },
+    "classification": {
+      "type": "DEADLINE",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Cổng thi Quiz 2 sẽ mở vào 09:00 ngày 20/9/2026 và đóng ",
+      "summary": "Cổng thi Quiz 2 sẽ mở vào 09:00 ngày 20/9/2026 và đóng cổng lúc 21:00 cùng ngày."
+    },
+    "schedule": {
+      "start_time": null,
+      "end_time": null,
+      "deadline": "2026-09-20T09:00:00+07:00",
+      "time_precision": "DEADLINE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667718",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667718",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667718",
+      "author": {
+        "id": "user_18",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-17T16:00:00.000Z"
+    },
+    "classification": {
+      "type": "DEADLINE",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Capstone Project · Báo cáo đề xuất",
+      "summary": "Thông báo mốc nộp báo cáo đề xuất Capstone Project chốt vào 23:59 thứ Sáu ngày 25/9/2026."
+    },
+    "schedule": {
+      "start_time": null,
+      "end_time": null,
+      "deadline": "2026-09-25T23:59:00+07:00",
+      "time_precision": "DEADLINE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:50+07:00",
+      "updated_at": "2026-09-17T17:04:50+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667719",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667719",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667719",
+      "author": {
+        "id": "user_19",
+        "name": "TA_NguyenVanA"
+      },
+      "created_at": "2026-09-17T22:00:00.000Z"
+    },
+    "classification": {
+      "type": "DEADLINE",
+      "importance": "HIGH",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Lab 2 · Prompt Engineering & LLM Basics",
+      "summary": "Cảnh báo: Chỉ còn đúng 2 tiếng nữa là đóng cổng nộp Lab 2 lúc 23:59!"
+    },
+    "schedule": {
+      "start_time": null,
+      "end_time": null,
+      "deadline": "2026-09-17T23:59:00+07:00",
+      "time_precision": "DEADLINE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:51+07:00",
+      "updated_at": "2026-09-17T17:04:51+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667721",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667721",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667721",
+      "author": {
+        "id": "user_21",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-17T11:00:00.000Z"
+    },
+    "classification": {
+      "type": "ANNOUNCEMENT",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Thông báo: Chiều nay 15:00 lớp nghỉ học lý thuyết do Gi",
+      "summary": "Thông báo: Chiều nay 15:00 lớp nghỉ học lý thuyết do Giảng viên họp khoa."
+    },
+    "schedule": {
+      "start_time": "2026-09-17T15:00:00+07:00",
+      "end_time": null,
+      "deadline": null,
+      "time_precision": "DATE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:51+07:00",
+      "updated_at": "2026-09-17T17:04:51+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667722",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667722",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667722",
+      "author": {
+        "id": "user_22",
+        "name": "TA_NguyenVanA"
+      },
+      "created_at": "2026-09-14T10:00:00.000Z"
+    },
+    "classification": {
+      "type": "DEADLINE",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Quiz 1 · Transformer Architecture",
+      "summary": "Han nop quiz 1 vlearn chot 21h ngay 19/9/2026 nha cac ban."
+    },
+    "schedule": {
+      "start_time": null,
+      "end_time": null,
+      "deadline": "2026-09-19T20:00:00+07:00",
+      "time_precision": "DEADLINE_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:51+07:00",
+      "updated_at": "2026-09-17T17:04:51+07:00",
+      "conflict_detected": true,
+      "conflict_note": "Phát hiện lệch deadline giữa nguồn mới (2026-09-19T20:00:00+07:00) và nguồn cũ evt_1122334455667703 (2026-09-19T21:00:00+07:00)"
+    }
+  },
+  {
+    "_id": "evt_1122334455667723",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667723",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667723",
+      "author": {
+        "id": "user_23",
+        "name": "TA_NguyenVanA"
+      },
+      "created_at": "2026-09-17T17:00:00.000Z"
+    },
+    "classification": {
+      "type": "MEETING",
+      "importance": "NORMAL",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Capstone Project · Báo cáo đề xuất",
+      "summary": "Họp nhóm Capstone lúc 19:30 tối mai ngày 18/9/2026."
+    },
+    "schedule": {
+      "start_time": "2026-09-18T19:30:00+07:00",
+      "end_time": null,
+      "deadline": null,
+      "time_precision": "START_TIME_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:51+07:00",
+      "updated_at": "2026-09-17T17:04:51+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  },
+  {
+    "_id": "evt_1122334455667725",
+    "source": {
+      "guild_id": "123456789012345678",
+      "channel_id": "99887766554433",
+      "channel_name": "dự-án-ai",
+      "message_id": "1122334455667725",
+      "message_url": "https://discord.com/channels/123456789012345678/99887766554433/1122334455667725",
+      "author": {
+        "id": "user_25",
+        "name": "ThayHoang_Tech"
+      },
+      "created_at": "2026-09-17T16:30:00.000Z"
+    },
+    "classification": {
+      "type": "MEETING",
+      "importance": "HIGH",
+      "is_relevant": true,
+      "confidence": 0.97
+    },
+    "content": {
+      "title": "Mini Hackathon · Checkpoint 2",
+      "summary": "Lịch tổng duyệt thuyết trình Vòng chung kết Hackathon diễn ra lúc 13:00 ngày 18/9/2026 tại hội trường E403."
+    },
+    "schedule": {
+      "start_time": "2026-09-18T13:00:00+07:00",
+      "end_time": null,
+      "deadline": null,
+      "time_precision": "START_TIME_ONLY"
+    },
+    "target": {
+      "audience": "UNKNOWN",
+      "course": null
+    },
+    "system": {
+      "status": "PROCESSED",
+      "created_at": "2026-09-17T17:04:51+07:00",
+      "updated_at": "2026-09-17T17:04:51+07:00",
+      "conflict_detected": false,
+      "conflict_note": null
+    }
+  }
+]

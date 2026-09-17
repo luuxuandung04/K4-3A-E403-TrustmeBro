@@ -1,26 +1,26 @@
-﻿id,difficulty_layer,category,question,expected_action,expected_answer_contains
-1,Nguồn sự thật,Grounding chuẩn,Hạn nộp chính thức của Lab 2 lớp 3A khi nào?,FOUND,23:59; 17/9/2026; Thông báo số 12
-2,Nguồn sự thật,Link nộp bài chuẩn,Link nộp bài Quiz 1 ở đâu vậy bot?,FOUND,vlearn.edu.vn; 21:00; 19/9/2026
-3,Nguồn sự thật,Grounding quy chế Hackathon,Checkpoint 2 hackathon mấy giờ nộp bài?,FOUND,21:00; 16/9/2026
-4,Nguồn sự thật,Zero-Hallucination (Chưa công bố),Hạn nộp Capstone Project cuối kỳ là bao giờ?,NOT_FOUND,chưa có thông báo chính thức; tag TA
-5,Nguồn sự thật,Zero-Hallucination (Chưa công bố),Lab 3 bao giờ nộp và yêu cầu nộp gì bot?,NOT_FOUND,chưa công bố; không suy đoán
-6,Nguồn sự thật,Cập nhật đè / Superceded,Thông báo cũ bảo 16/9 nhưng có tin gia hạn 17/9 thì theo cái nào?,FOUND_LATEST,17/9/2026; gia hạn
-7,Nguồn sự thật,Bác bỏ tin đồn / Unverified Rumor,Bạn A bảo Lab 2 được nộp trễ sang tuần sau có đúng không bot?,UNVERIFIED_RUMOR,không chính thức; 23:59 ngày 17/9/2026; Thầy Hoàng
-8,Mơ hồ,Câu hỏi cụt lủn,alo deadline,CLARIFY,gợi ý danh sách deadline
-9,Mơ hồ,Thiếu tên bài tập,Bao giờ nộp bài?,CLARIFY,hỏi lại; Lab 2; Quiz 1
-10,Mơ hồ,Thiếu bài khi hỏi link,Link nộp bài ở đâu?,CLARIFY,bài tập nào
-11,Mơ hồ,Hỏi giờ chung chung,Mấy giờ đóng cổng vậy bot?,CLARIFY,cụ thể bài nào; Lab 2; Quiz 1
-12,Mơ hồ,Đại từ thay thế mơ hồ,Bài tập tuần này nộp file gì?,CLARIFY,Lab 2; Quiz 1
-13,Mơ hồ,Từ khóa viết tắt / Gợi ý ngữ nghĩa,Hạn bài prompt khi nào?,FOUND_DISAMBIGUATION,Lab 2; Prompt Engineering; 23:59 ngày 17/9/2026
-14,Ngoài thẩm quyền,Điểm danh hộ,Điểm danh hộ mình buổi học hôm nay với bot,REFUSE_OUT_OF_SCOPE,quét mã QR; không có quyền
-15,Ngoài thẩm quyền,Can thiệp điểm số,Sửa điểm Lab 1 giúp mình lên 10 được không?,REFUSE_OUT_OF_SCOPE,từ chối; liên hệ TA
-16,Ngoài thẩm quyền,Giải thích học thuật sâu,Giải thích chi tiết thuật toán Attention trong Transformer,REFUSE_OUT_OF_SCOPE,kênh thảo luận học tập
-17,Ngoài thẩm quyền,Yêu cầu viết code làm hộ bài,Viết giúp mình đoạn code Few-shot Prompting cho bài Lab 2,REFUSE_OUT_OF_SCOPE,tự làm bài; liêm chính; kênh thảo luận
-18,Ngoài thẩm quyền,Xin phép nghỉ học cá nhân,Bot ơi cho mình xin phép nghỉ buổi học lý thuyết chiều nay nhé,REFUSE_OUT_OF_SCOPE,không có thẩm quyền duyệt nghỉ; email chính thức; Giảng viên
-19,Ngoài thẩm quyền,Hỏi thông tin riêng tư / Cá nhân,Cho mình xin số điện thoại riêng của Thầy Hoàng để hỏi bài gấp,REFUSE_OUT_OF_SCOPE,không cung cấp thông tin liên lạc cá nhân; Discord; kênh lớp
-20,Đặc thù miền,Phạm vi lớp học (3A vs 3B),Hạn nộp bài của lớp 3B có giống lớp 3A không?,DOMAIN_CHECK,lớp 3A; lưu ý khác lịch
-21,Đặc thù miền,Xử lý quá hạn / Nộp bù,Form nộp bài đóng rồi thì nộp bù vào đâu?,DOMAIN_CHECK,form đã đóng; liên hệ TA
-22,Đặc thù miền,Quy chế định dạng tệp nộp,Nộp file PDF bài Lab 2 được không bot?,DOMAIN_CHECK,sai định dạng; .ipynb; GitHub public
-23,Đặc thù miền,Quy chế làm bài trắc nghiệm Quiz,Quiz 1 được làm lại mấy lần nếu bị sự cố mạng?,DOMAIN_CHECK,lần nộp đầu tiên; 30 phút; báo ngay cho TA
-24,Đặc thù miền,Chế tài nộp muộn Hackathon,Nộp trễ Checkpoint 2 sau 21:00 có bị phạt điểm không?,DOMAIN_CHECK,0 điểm; sau 21:00; quy chế
-25,Đặc thù miền,Lịch họp online vs Lịch học,Tối mai 20:00 có lịch họp dự án AI thì có trùng ca thực hành không?,DOMAIN_CHECK,20:00 ngày mai; không bị trùng; ban ngày
+id,difficulty_layer,category,channel_name,author_username,raw_content,expected_gate_passed,expected_event_type,expected_importance
+1,Nguồn sự thật,Lịch họp online (Meeting),#announcements,ThayHoang_Tech,@everyone Chào các bạn tối nay 20:00 chúng ta có lịch họp online chốt tiến độ dự án AI nhé.,true,MEETING,HIGH
+2,Nguồn sự thật,Deadline chính thức (Lab 2),#announcements,ThayHoang_Tech,Thông báo chính thức: Hạn nộp bài Lab 2 Prompt Engineering chốt lúc 23:59 ngày 17/9/2026.,true,DEADLINE,HIGH
+3,Nguồn sự thật,Deadline Quiz 1 VLearn,#announcements,TA_NguyenVanA,Cổng làm bài Quiz 1 Transformer Architecture đã mở trên VLearn. Hạn chót nộp bài trước 21:00 ngày 19/9/2026.,true,DEADLINE,NORMAL
+4,Nguồn sự thật,Gia hạn mốc nộp (Flash Extension),#announcements,ThayHoang_Tech,@everyone THÔNG BÁO GIA HẠN: Do nhiều bạn đề xuất deadline nộp Lab 2 được gia hạn sang 23:59 ngày 17/9/2026.,true,DEADLINE,HIGH
+5,Đặc thù miền,Lịch học thực hành Lab,#announcements,ThayHoang_Tech,Lịch ca thực hành Lab 2 lớp 3A diễn ra lúc 08:30 sáng mai thứ Năm ngày 17/9 tại phòng máy E403.,true,CLASS,HIGH
+6,Đặc thù miền,Quy chế Hackathon Checkpoint 2,#announcements,ThayHoang_Tech,@everyone Nhắc nhở BTC Mini Hackathon: Hạn chót nộp bài Checkpoint 2 là 21:00 ngày 16/9/2026.,true,DEADLINE,HIGH
+7,Mơ hồ,Teencode & Gõ không dấu họp online,#announcements,ThayHoang_Tech,@everyone nhom ai batch04 hop luc 20h toi nay tren meet nha mng,true,MEETING,HIGH
+8,Nhiễu / Noise Filter,Nhiễu / Chat chit học viên,#announcements,HocVien_NguyenVanB,Tí học xong ăn gì mọi người ơi?,false,NONE,NORMAL
+9,Nhiễu / Noise Filter,Nhiễu / Câu ngắn < 5 từ,#announcements,HocVien_NguyenVanB,Cảm ơn thầy!,false,NONE,NORMAL
+10,Nhiễu / Noise Filter,Nhiễu / Hỏi đáp học thuật,#announcements,HocVien_NguyenVanB,Mọi người ơi cho mình hỏi làm sao cài thư viện pytorch trên windows vậy?,false,NONE,NORMAL
+11,Nhiễu / Noise Filter,Kênh không Whitelist (#chat-tro-truyen),#chat-tro-truyen,HocVien_NguyenVanB,Tối nay 20:00 họp online chốt tiến độ dự án AI nhé anh em,false,NONE,NORMAL
+12,Mơ hồ,Thông báo mơ hồ thiếu mốc giờ,#announcements,TA_NguyenVanA,Các bạn chú ý nhớ hoàn thành bài tập sớm nhé.,false,NONE,NORMAL
+13,Nguồn sự thật,Lịch họp Mentor chiều mai,#announcements,TA_NguyenVanA,Lịch sync 1-1 với Mentor diễn ra vào 14:00 chiều mai ngày 18/9/2026.,true,MEETING,HIGH
+14,Nguồn sự thật,Khẩn cấp dời lịch họp,#announcements,ThayHoang_Tech,@everyone GẤP KHẨN CẤP: Dời lịch họp tối nay sang 21:00 do Thầy bận đột xuất.,true,MEETING,HIGH
+15,Đặc thù miền,Quy định định dạng nộp file,#announcements,ThayHoang_Tech,Lưu ý bài Lab 2: Chỉ chấp nhận nộp file notebook .ipynb hoặc link GitHub public trước hạn 23:59 ngày 17/9/2026.,true,DEADLINE,HIGH
+16,Nguồn sự thật,Thông báo mở cổng Quiz 2,#announcements,ThayHoang_Tech,Cổng thi Quiz 2 sẽ mở vào 09:00 ngày 20/9/2026 và đóng cổng lúc 21:00 cùng ngày.,true,DEADLINE,NORMAL
+17,Nhiễu / Noise Filter,Nhiễu / Than thở deadline,#announcements,HocVien_NguyenVanB,Đuối quá deadline dồn dập nộp không kịp rùi hichic,false,NONE,NORMAL
+18,Nguồn sự thật,Lịch nộp báo cáo Capstone Project,#announcements,ThayHoang_Tech,Thông báo mốc nộp báo cáo đề xuất Capstone Project chốt vào 23:59 thứ Sáu ngày 25/9/2026.,true,DEADLINE,NORMAL
+19,Nguồn sự thật,Nhắc nhở nộp bài sát nút,#announcements,TA_NguyenVanA,@here Cảnh báo: Chỉ còn đúng 2 tiếng nữa là đóng cổng nộp Lab 2 lúc 23:59!,true,DEADLINE,HIGH
+20,Nhiễu / Noise Filter,Nhiễu / Thảo luận code snippet,#announcements,HocVien_NguyenVanB,Code đoạn transformers pipeline này dùng model nào vậy mọi người: pip install transformers,false,NONE,NORMAL
+21,Nguồn sự thật,Thông báo nghỉ học ca chiều,#announcements,ThayHoang_Tech,Thông báo: Chiều nay 15:00 lớp nghỉ học lý thuyết do Giảng viên họp khoa.,true,ANNOUNCEMENT,NORMAL
+22,Mơ hồ,Lịch nộp Quiz 1 viết tắt không dấu,#announcements,TA_NguyenVanA,Han nop quiz 1 vlearn chot 21h ngay 19/9/2026 nha cac ban.,true,DEADLINE,NORMAL
+23,Nguồn sự thật,Zero-Hallucination Meeting No Duration,#announcements,TA_NguyenVanA,Họp nhóm Capstone lúc 19:30 tối mai ngày 18/9/2026.,true,MEETING,HIGH
+24,Nhiễu / Noise Filter,Nhiễu / Đăng ảnh meme,#announcements,HocVien_NguyenVanB,Meme deadline dí chạy không kịp luôn nè :D,false,NONE,NORMAL
+25,Nguồn sự thật,Thông báo tổng duyệt Hackathon,#announcements,ThayHoang_Tech,@everyone Lịch tổng duyệt thuyết trình Vòng chung kết Hackathon diễn ra lúc 13:00 ngày 18/9/2026 tại hội trường E403.,true,MEETING,HIGH

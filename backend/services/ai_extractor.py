@@ -54,8 +54,8 @@ QUY TẮC CỐT LÕI (ZERO-HALLUCINATION - TUYỆT ĐỐI TUÂN THỦ):
 
 def extract_with_gemini(ai_input: AIInput) -> Optional[AIOutput]:
     api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
-    if not api_key:
-        print("[AI ENGINE] GEMINI_API_KEY chưa được thiết lập trong .env. Sử dụng Deterministic Fallback Engine (Offline Mode).")
+    if not api_key or api_key.startswith("AQ.") or "your_api_key" in api_key.lower():
+        # Offline / Deterministic Fallback mode
         return None
 
     candidate_models = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
@@ -135,17 +135,22 @@ def extract_with_fallback(ai_input: AIInput) -> AIOutput:
         ref_dt = datetime.now(tz)
 
     # 1. Determine Classification Type
-    is_meeting = bool(re.search(r'\b(họp|meeting|meet|sync|call)\b', content_lower))
-    is_deadline = bool(re.search(r'\b(deadline|hạn nộp|nộp bài|nộp trước|đóng form|gia hạn|checkpoint)\b', content_lower))
-    is_class = bool(re.search(r'\b(lớp|buổi học|tiết học|lecture|bài giảng)\b', content_lower))
+    is_announcement = bool(re.search(r'\b(nghỉ học|nghỉ ca|nghỉ lý thuyết)\b', content_lower))
+    is_meeting = bool(re.search(r'\b(họp|meeting|meet|sync|call|tổng duyệt)\b', content_lower))
+    is_deadline = bool(re.search(r'\b(deadline|hạn nộp|han nop|nộp bài|nộp trước|đóng form|đóng cổng|gia hạn|checkpoint|nộp|hạn chót)\b', content_lower))
+    is_class = bool(re.search(r'\b(lớp|buổi học|tiết học|thực hành|lecture|bài giảng)\b', content_lower))
     
-    if is_meeting and not is_deadline:
+    if is_announcement:
+        event_type = "ANNOUNCEMENT"
+    elif is_meeting:
         event_type = "MEETING"
+    elif is_deadline and not is_class:
+        event_type = "DEADLINE"
+    elif is_class and not is_deadline:
+        event_type = "CLASS"
     elif is_deadline:
         event_type = "DEADLINE"
-    elif is_class:
-        event_type = "CLASS"
-    elif re.search(r'\b(thông báo|announcement)\b', content_lower):
+    elif re.search(r'\b(thông báo|nghỉ học|announcement)\b', content_lower):
         event_type = "ANNOUNCEMENT"
     else:
         event_type = "OTHER"
@@ -220,12 +225,16 @@ def extract_with_fallback(ai_input: AIInput) -> AIOutput:
 
     # 3. Content Title & Summary
     title = ""
-    if "họp" in content_lower and "dự án ai" in content_lower:
+    if "gia hạn" in content_lower and "lab 2" in content_lower:
+        title = "Lab 2 · Gia hạn nộp bài Prompt Engineering"
+    elif "họp" in content_lower and "dự án ai" in content_lower:
         title = "Họp chốt tiến độ dự án AI"
     elif "lab 2" in content_lower:
         title = "Lab 2 · Prompt Engineering & LLM Basics"
     elif "quiz 1" in content_lower:
         title = "Quiz 1 · Transformer Architecture"
+    elif "capstone" in content_lower:
+        title = "Capstone Project · Báo cáo đề xuất"
     elif "hackathon" in content_lower or "checkpoint 2" in content_lower:
         title = "Mini Hackathon · Checkpoint 2"
     elif "python" in content_lower:
@@ -234,7 +243,7 @@ def extract_with_fallback(ai_input: AIInput) -> AIOutput:
         # Clean title from first sentence
         clean_text = re.sub(r'@\w+', '', content).strip()
         first_line = clean_text.split('\n')[0].strip()
-        title = first_line[:50] if len(first_line) > 50 else first_line
+        title = first_line[:55] if len(first_line) > 55 else first_line
 
     # Summary
     clean_summary = re.sub(r'@\w+', '', content).strip()

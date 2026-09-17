@@ -128,6 +128,14 @@ class JsonStore:
         self.sync_deadlines_view()
         return doc
 
+    def clear_all(self):
+        self._write_raw([])
+        if DEADLINES_FILE.exists():
+            try:
+                os.remove(DEADLINES_FILE)
+            except Exception:
+                pass
+
     def update(self, event_id: str, patch: Dict[str, Any]) -> Optional[EventDocument]:
         raw_items = self._read_raw()
         target_idx = None

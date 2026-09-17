@@ -14,6 +14,7 @@ class AggregatedItem(BaseModel):
     date: str
     time: str
     title: str
+    summary: Optional[str] = None
     source_url: str
 
 class AggregatedViewModel(BaseModel):

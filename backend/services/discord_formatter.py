@@ -61,7 +61,8 @@ def format_discord_payload(view_model: AggregatedViewModel, hub_url: str = "http
 
         field_name = f"{meta['header_icon']} {dow_str} — {day_str}"
         prefix = f"{meta['body_icon']} Deadline: " if item.type == "DEADLINE" else f"{meta['body_icon']} "
-        field_value = f"🕐 **{item.time}**\n{prefix}{item.title}\n[# Xem nguồn]({item.source_url})"
+        summary_line = f"\nℹ️ *{item.summary[:80]}*" if hasattr(item, 'summary') and item.summary and item.summary != item.title else ""
+        field_value = f"🕐 **{item.time}**\n{prefix}{item.title}{summary_line}\n[# Xem nguồn]({item.source_url})"
 
         fields.append(DiscordEmbedField(
             name=field_name,
