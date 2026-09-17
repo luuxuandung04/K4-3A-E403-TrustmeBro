@@ -126,7 +126,32 @@ const initialChannelMessages = {
         "avatar": "D",
         "type": "bot"
       },
-      "content": "Chào mừng bạn đến với **#deadline-hub**! Kênh này **tự động tổng hợp hạn nộp 7 ngày tới (Hôm nay + 6 ngày)**. Bạn không cần gõ lệnh. Bot sẽ chỉ gửi thông báo mới khi có **thay đổi đột ngột sát hạn**, **deadline mới phát sinh trong ngày** hoặc **trường hợp khẩn cấp**!",
+      "content": "📢 **BẢNG TIN TỰ ĐỘNG 7 NGÀY TỚI (CHỈ ĐỌC)**\n\nĐây là không gian **chỉ đọc** hiển thị lịch nộp bài 7 ngày tới (đồng bộ tự động) và các thông báo khẩn cấp từ Giảng viên. Hệ thống tự động phân loại mức ưu tiên (Khẩn cấp, Quan trọng, Thông báo thường) và cập nhật liên tục.",
+      "timestamp": "08:00 · Hôm nay",
+      "type": "guide"
+    },
+    {
+      "id": "msg_hub_digest",
+      "author": {
+        "name": "Deadline Bot",
+        "role": "APP",
+        "avatar": "D",
+        "type": "bot"
+      },
+      "timestamp": "14:20 · Hôm nay",
+      "type": "weekly_digest"
+    }
+  ],
+  "deadline-hub-bulletin": [
+    {
+      "id": "msg_hub_intro",
+      "author": {
+        "name": "Deadline Bot",
+        "role": "APP",
+        "avatar": "D",
+        "type": "bot"
+      },
+      "content": "📢 **BẢNG TIN TỰ ĐỘNG 7 NGÀY TỚI (CHỈ ĐỌC)**\n\nĐây là không gian **chỉ đọc** hiển thị lịch nộp bài 7 ngày tới (đồng bộ tự động) và các thông báo khẩn cấp từ Giảng viên. Hệ thống tự động phân loại mức ưu tiên (Khẩn cấp, Quan trọng, Thông báo thường) và cập nhật liên tục.",
       "timestamp": "08:00 · Hôm nay",
       "type": "guide"
     },
@@ -223,15 +248,15 @@ const initialChannelMessages = {
       "id": "msg_lab_04",
       "channel": "lab-assignments",
       "author": {
-        "name": "Deadline Bot",
-        "role": "APP",
-        "avatar": "D",
-        "type": "bot"
+        "name": "TA Tuấn",
+        "role": "TA",
+        "avatar": "TT",
+        "type": "ta"
       },
       "replyTo": "Lan Anh",
-      "content": "💬 [Trả lời @Lan Anh] 📌 Hạn nộp chính thức của **Lab 2: Prompt Engineering** là **23:59 hôm nay, 17/09/2026** (theo thông báo gia hạn của Thầy Hoàng). Form nộp: https://forms.gle/lab2-submit-k4. Bạn có thể sang kênh #deadline-hub để xem chi tiết lịch nhé!",
-      "timestamp": "11:00 · 17/09",
-      "type": "local_reply"
+      "content": "Chào Lan Anh, hạn Lab 2 là **23:59 hôm nay (17/09)** nhé. Nộp file notebook hoặc link GitHub qua form. Cần check lịch tổng hợp và các thông báo mới nhất thì qua Bảng Tin **#deadline-hub** nha!",
+      "timestamp": "11:02 · 17/09",
+      "type": "chat"
     }
   ],
   "lich-hoc": [
@@ -510,77 +535,153 @@ function scrollFeedToLatest(behavior = "smooth") {
 }
 
 // ============================================================================
-// 7-DAY ROLLING DIGEST RENDERING
+// 7-DAY ROLLING DIGEST RENDERING & SMART DEDUPLICATION
 // ============================================================================
 
+function extractChannelName(rawStr) {
+  if (!rawStr) return "announcements";
+  const s = String(rawStr).toLowerCase();
+  if (s.includes("hub") || s.includes("bulletin")) return "deadline-hub";
+  if (s.includes("quiz")) return "quiz-updates";
+  if (s.includes("lab")) return "lab-assignments";
+  if (s.includes("hack")) return "hackathon";
+  if (s.includes("lich") || s.includes("học")) return "lich-hoc";
+  if (s.includes("announcement")) return "announcements";
+  return "announcements";
+}
+
+function getCanonicalEventKey(item) {
+  if (!item) return `item_${Date.now()}`;
+  const code = (item.assignment_code || item.id || "").toLowerCase();
+  const title = (item.title || "").toLowerCase();
+  const date = item.due_date || item.date || "";
+
+  // Match Labs: Lab 1, Lab 2, Lab 3, etc.
+  const labMatch = title.match(/lab\s*(\d+)/) || code.match(/lab\s*(\d+)/);
+  if (labMatch) return `lab-${labMatch[1]}`;
+
+  // Match Quizzes: Quiz 1, Quiz 2, etc.
+  const quizMatch = title.match(/quiz\s*(\d+)/) || code.match(/quiz\s*(\d+)/);
+  if (quizMatch) return `quiz-${quizMatch[1]}`;
+
+  // Match Checkpoints: Checkpoint 2, CP2, Hackathon
+  const cpMatch = title.match(/checkpoint\s*(\d+)/) || title.match(/cp\s*(\d+)/) || code.match(/cp\s*(\d+)/);
+  if (cpMatch) return `hackathon-cp${cpMatch[1]}`;
+  if (title.includes("hackathon") || code.includes("hackathon")) return "hackathon-cp2";
+
+  // Meetings: Group by date + meeting keywords
+  const isMeeting = item.type === "MEETING" || title.includes("họp") || title.includes("meeting");
+  if (isMeeting) {
+    if (title.includes("tiến độ") || title.includes("dự án") || title.includes("slide") || title.includes("online")) {
+      return `meeting_${date}_project_ai`;
+    }
+    return `meeting_${date}_${item.due_time || item.time || "general"}`;
+  }
+
+  return code || title;
+}
+
+function deduplicateEventList(items) {
+  const map = new Map();
+  for (const item of items) {
+    const key = getCanonicalEventKey(item);
+    if (!map.has(key)) {
+      map.set(key, { ...item });
+    } else {
+      const existing = map.get(key);
+      const isItemExtension = item.is_extension || (item.due_time && item.due_time !== "23:59");
+      const hasMeet = Boolean(item.meetLink);
+      const isItemNewer = (item.updated_at || "") >= (existing.updated_at || "");
+
+      if (hasMeet) existing.meetLink = item.meetLink;
+      if (item.submission_link) existing.submission_link = item.submission_link;
+      if (item.source_message_id) existing.source_message_id = item.source_message_id;
+      if (item.format) existing.format = item.format;
+
+      if (isItemExtension || isItemNewer) {
+        map.set(key, { ...existing, ...item });
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
+function renderDigestSingleItem(item) {
+  const isMeeting = item.type === "MEETING" || (item.title && item.title.toLowerCase().includes("họp"));
+  const rawCh = item.source_channel || item.source || "announcements";
+  const chName = extractChannelName(rawCh);
+  const srcMsgId = item.source_message_id || item.source_msg_id || "";
+  const authorName = item.author_name || "Giảng viên";
+
+  const tagClass = isMeeting ? "blue" : (item.is_extension ? "red" : (item.title && item.title.toLowerCase().includes("quiz") ? "blue" : "purple"));
+  const timeText = isMeeting ? `🤝 Họp lúc ${item.due_time || item.time}` : (item.is_extension ? `🚨 Gia hạn: ${item.due_time || item.time}` : `⏳ Hạn: ${item.due_time || item.time}`);
+  const meetLink = item.meetLink || null;
+  const subLink = item.submission_link || null;
+  const formatText = item.format || (isMeeting ? "Google Meet trực tuyến" : "Nộp bài trực tuyến");
+
+  return `
+    <div class="digest-item ${isMeeting ? "meeting" : (item.is_extension ? "urgent" : "quiz")}">
+      <div class="item-main">
+        <div class="item-title-row">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span class="countdown-tag ${tagClass}">${escapeHtml(timeText)}</span>
+        </div>
+        <div class="item-meta">
+          <span>Thời gian: <b>${escapeHtml(item.due_time || item.time)}</b></span>
+          <span>Nguồn: <b>#${escapeHtml(chName)} (${escapeHtml(authorName)})</b></span>
+          <span>Hình thức: <b>${escapeHtml(formatText)}</b></span>
+        </div>
+      </div>
+      <div class="item-actions">
+        ${meetLink ? `<a href="${escapeHtml(meetLink)}" target="_blank" rel="noopener" class="btn-submit" style="background:#2563eb;">📹 Vào Meet</a>` : ""}
+        ${subLink && !meetLink ? `<a href="${escapeHtml(subLink)}" target="_blank" rel="noopener" class="btn-submit">🔗 Nộp Form</a>` : ""}
+        <button type="button" class="btn-detail" data-deadline-id="${item.id}">Chi tiết</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderWeeklyDigestHtml() {
-  const activeItems = deadlines.filter((d) => d.status === "ACTIVE" || d.status === "CONFLICT");
+  const rawActive = deadlines.filter((d) => d.status === "ACTIVE" || d.status === "CONFLICT");
+  const activeItems = deduplicateEventList(rawActive);
 
   const todayItems = activeItems.filter((d) => (d.due_date === "2026-09-17" || d.date === "2026-09-17"));
+  const tomorrowItems = activeItems.filter((d) => (d.due_date === "2026-09-18" || d.date === "2026-09-18"));
   const satItems = activeItems.filter((d) => (d.due_date === "2026-09-19" || d.date === "2026-09-19"));
-  const totalCount = todayItems.length + satItems.length;
+  const nextDaysItems = activeItems.filter((d) => {
+    const dt = d.due_date || d.date || "";
+    return dt >= "2026-09-20" && dt <= "2026-09-23";
+  });
 
-  let todayHtml = "";
-  if (todayItems.length > 0) {
-    todayHtml = todayItems.map((item) => `
-      <div class="digest-item urgent">
-        <div class="item-main">
-          <div class="item-title-row">
-            <strong>${escapeHtml(item.title)}</strong>
-            <span class="countdown-tag red">⏳ Còn ~9 tiếng (${escapeHtml(item.time || item.due_time)} hôm nay)</span>
-          </div>
-          <div class="item-meta">
-            <span>Hạn chót: <b>${escapeHtml(item.due_time || item.time)} hôm nay</b></span>
-            <span>Nguồn: <b>${escapeHtml(item.source_channel || item.source || "#announcements")} (${escapeHtml(item.author_name || "Thầy Hoàng")})</b></span>
-            <span>Format: <b>${escapeHtml(item.format || "File notebook .ipynb")}</b></span>
-          </div>
-        </div>
-        <div class="item-actions">
-          ${item.submission_link ? `<a href="${item.submission_link}" target="_blank" class="btn-submit">🔗 Nộp Form</a>` : ""}
-          <button type="button" class="btn-detail" data-deadline-id="${item.id}">Chi tiết</button>
-        </div>
-      </div>
-    `).join("");
-  } else {
-    todayHtml = '<div class="day-items empty"><span>Không có bài đến hạn hôm nay.</span></div>';
-  }
+  const totalCount = todayItems.length + tomorrowItems.length + satItems.length + nextDaysItems.length;
 
-  let satHtml = "";
-  if (satItems.length > 0) {
-    satHtml = satItems.map((item) => `
-      <div class="digest-item quiz">
-        <div class="item-main">
-          <div class="item-title-row">
-            <strong>${escapeHtml(item.title)}</strong>
-            <span class="countdown-tag blue">⏳ Còn 2 ngày (21:00 Thứ Bảy)</span>
-          </div>
-          <div class="item-meta">
-            <span>Hạn chót: <b>${escapeHtml(item.due_time || item.time)} · 19/09</b></span>
-            <span>Nguồn: <b>${escapeHtml(item.source_channel || item.source || "#quiz-updates")} (${escapeHtml(item.author_name || "Cô Minh Anh")})</b></span>
-            <span>Thời gian: <b>30 phút trên VLearn</b></span>
-          </div>
-        </div>
-        <div class="item-actions">
-          ${item.submission_link ? `<a href="${item.submission_link}" target="_blank" class="btn-submit">🔗 Vào thi</a>` : ""}
-          <button type="button" class="btn-detail" data-deadline-id="${item.id}">Chi tiết</button>
-        </div>
-      </div>
-    `).join("");
-  } else {
-    satHtml = '<div class="day-items empty"><span>Không có bài đến hạn.</span></div>';
-  }
+  const todayHtml = todayItems.length > 0
+    ? todayItems.map(renderDigestSingleItem).join("")
+    : '<div class="day-items empty"><span>Không có bài nộp hoặc lịch họp hôm nay.</span></div>';
+
+  const tomorrowHtml = tomorrowItems.length > 0
+    ? tomorrowItems.map(renderDigestSingleItem).join("")
+    : '<div class="day-items empty"><span>Không có bài đến hạn · Dành thời gian ôn tập lý thuyết & thực hành Lab</span></div>';
+
+  const satHtml = satItems.length > 0
+    ? satItems.map(renderDigestSingleItem).join("")
+    : '<div class="day-items empty"><span>Không có bài đến hạn.</span></div>';
+
+  const nextDaysHtml = nextDaysItems.length > 0
+    ? nextDaysItems.map(renderDigestSingleItem).join("")
+    : '<div class="day-items empty"><span>Chưa có deadline chính thức mới phát sinh. Theo dõi thêm tại #announcements.</span></div>';
 
   return `
     <div class="weekly-digest-card">
       <div class="digest-header">
         <div>
           <span class="digest-badge">📅 TỰ ĐỘNG TỔNG HỢP 7 NGÀY TỚI</span>
-          <h2>Lịch Deadline Tuần Này (17/09 – 23/09/2026)</h2>
-          <p>Tự động đồng bộ từ các kênh thông báo chính thức · Không cần gõ lệnh</p>
+          <h2>Lịch Trình & Deadline Tuần Này (17/09 – 23/09/2026)</h2>
+          <p>Tự động đồng bộ từ các kênh thông báo chính thức · Bao gồm bài tập & lịch họp</p>
         </div>
         <div class="digest-stat">
           <strong>${totalCount}</strong>
-          <span>BÀI SẮP ĐẾN HẠN</span>
+          <span>SỰ KIỆN SẮP TỚI</span>
         </div>
       </div>
 
@@ -602,9 +703,7 @@ function renderWeeklyDigestHtml() {
             <strong class="day-date">18/09</strong>
             <span class="day-name">Thứ Sáu</span>
           </div>
-          <div class="day-items empty">
-            <span>Không có bài đến hạn · Dành thời gian ôn tập lý thuyết & thực hành Lab</span>
-          </div>
+          <div class="day-items">${tomorrowHtml}</div>
         </div>
 
         <!-- Thứ Bảy 19/09 -->
@@ -623,9 +722,7 @@ function renderWeeklyDigestHtml() {
             <span class="day-badge">20 – 23/09</span>
             <span class="day-name">4 ngày tiếp</span>
           </div>
-          <div class="day-items empty">
-            <span>Chưa có deadline chính thức mới phát sinh. Theo dõi thêm tại #announcements.</span>
-          </div>
+          <div class="day-items">${nextDaysHtml}</div>
         </div>
       </div>
 
@@ -642,6 +739,32 @@ function getRoleBadge(type, roleName) {
   if (type === "ta") return '<span class="role-tag ta">TA</span>';
   if (type === "admin") return '<span class="role-tag admin">ADMIN</span>';
   return '<span class="role-tag student">HỌC VIÊN</span>';
+}
+
+
+function updateComposerLockState() {
+  const composer = document.querySelector("#commandComposer");
+  const input = document.querySelector("#commandInput");
+  if (!composer || !input) return;
+
+  const p = personas[currentPersona] || personas.student_lananh;
+  const isAuthority = ["teacher", "ta", "admin"].includes(p.type);
+
+  if (activeChannel === "deadline-hub") {
+    if (!isAuthority) {
+      composer.classList.add("locked");
+      input.disabled = true;
+      input.placeholder = "🔒 Bảng tin chỉ đọc · Chỉ Giảng viên & Ban tổ chức mới có quyền đăng thông báo tại đây.";
+    } else {
+      composer.classList.remove("locked");
+      input.disabled = false;
+      input.placeholder = `📢 [${p.role}] Đăng thông báo khẩn cấp lên Bảng Tin Deadline...`;
+    }
+  } else {
+    composer.classList.remove("locked");
+    input.disabled = false;
+    updateComposerPlaceholder();
+  }
 }
 
 function renderMessageItem(msg) {
@@ -698,7 +821,8 @@ function renderMessageItem(msg) {
       .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
       .replace(/`(.*?)`/g, "<code>$1</code>")
       .replace(/\n/g, "<br/>")
-      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;">$1</a>');
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;">$1</a>')
+      .replace(/#(announcements|deadline-hub|lab-assignments|quiz-updates|hackathon|lich-hoc)\b/g, '<button type="button" class="channel-jump-btn" data-jump-channel="$1" style="padding:1px 5px;font-size:10px;margin:0 2px;">#$1 ↗</button>');
     bodyHtml += `<p>${formattedContent}</p>`;
   }
 
@@ -706,7 +830,7 @@ function renderMessageItem(msg) {
     const isConflict = msg.embed.badgeType === "yellow" || (msg.embed.status && msg.embed.status === "CONFLICT");
     const rawEmbedCh = msg.embed.sourceChannel || msg.sourceChannel || (msg.channel ? msg.channel : "announcements");
     const embedSourceCh = rawEmbedCh.replace("#", "").trim();
-    const embedMsgId = msg.embed.sourceMsgId || msg.sourceMsgId || "";
+    const embedMsgId = msg.embed.sourceMsgId || msg.embed.source_message_id || msg.sourceMsgId || msg.source_message_id || "";
     bodyHtml += `
       <div class="discord-announcement-embed ${isConflict ? "conflict" : ""}">
         <div class="embed-top-row">
@@ -722,6 +846,7 @@ function renderMessageItem(msg) {
         </dl>
         <div class="embed-actions">
           ${msg.embed.link ? `<a class="embed-btn-link" href="${msg.embed.link}" target="_blank">🔗 Mở Form Nộp</a>` : ""}
+          <button type="button" class="channel-jump-btn" data-jump-channel="${escapeHtml(embedSourceCh)}" data-jump-msg="${escapeHtml(embedMsgId)}" style="padding:4px 10px;font-size:11px;">💬 Xem tin gốc #${escapeHtml(embedSourceCh)} ↗</button>
           <button type="button" class="embed-btn-report" data-action="report">⚠️ Báo sai / Tag TA</button>
         </div>
       </div>`;
@@ -744,26 +869,40 @@ function renderMessageItem(msg) {
 }
 
 function renderChannelFeed(channelId) {
-  const info = channelsInfo[channelId] || { name: channelId, title: channelId, desc: "", welcome: "" };
-  activeChannelTitle.textContent = info.title;
-  activeChannelDesc.textContent = info.desc;
-  commandInput.placeholder = channelId === "deadline-hub"
-    ? "Kênh tự động cập nhật · Chỉ TA/Giảng viên đăng thông báo khẩn cấp..."
-    : `Nhắn #${info.name}...`;
+  let msgs = [];
+  let welcomeIcon = "#";
+  let welcomeTitle = "";
+  let welcomeDesc = "";
 
-  const msgs = channelMessages[channelId] || [];
+  if (channelId === "deadline-hub") {
+    activeChannelTitle.textContent = "deadline-hub";
+    activeChannelDesc.textContent = "Bảng tin chỉ đọc hiển thị lịch 7 ngày tới & thông báo khẩn cấp từ Giảng viên";
+    welcomeIcon = "📢";
+    welcomeTitle = "Bảng Tin Deadline 7 Ngày (Chỉ Đọc)";
+    welcomeDesc = "Lịch trình nộp bài 7 ngày tới được hệ thống tự động cập nhật liên tục. Chỉ Giảng viên & Ban tổ chức mới có quyền đăng thông báo khẩn cấp tại đây.";
+    msgs = channelMessages["deadline-hub-bulletin"] || channelMessages["deadline-hub"] || [];
+  } else {
+    const info = channelsInfo[channelId] || { name: channelId, title: channelId, desc: "", welcome: "" };
+    activeChannelTitle.textContent = info.title;
+    activeChannelDesc.textContent = info.desc;
+    welcomeIcon = "#";
+    welcomeTitle = `Chào mừng đến với #${info.title}!`;
+    welcomeDesc = info.welcome;
+    msgs = channelMessages[channelId] || [];
+  }
 
   let html = `
     <div class="channel-welcome">
-      <div class="welcome-hash">#</div>
-      <h1>Chào mừng đến với #${escapeHtml(info.title)}!</h1>
-      <p>${escapeHtml(info.welcome)}</p>
+      <div class="welcome-hash">${welcomeIcon}</div>
+      <h1>${escapeHtml(welcomeTitle)}</h1>
+      <p>${escapeHtml(welcomeDesc)}</p>
     </div>
     <div class="chat-date"><span>HÔM NAY, 17/09/2026</span></div>`;
 
   html += msgs.map(renderMessageItem).join("");
   messageFeed.innerHTML = html;
 
+  updateComposerLockState();
   scrollFeedToLatest("auto");
 }
 
@@ -773,11 +912,11 @@ function updateComposerPlaceholder() {
   if (activeChannel === "announcements") {
     commandInput.placeholder = `[#announcements] Nhập thông báo của ${p.name} (ví dụ: Gia hạn nộp bài, lịch họp, bài tập mới)...`;
   } else if (activeChannel === "deadline-hub") {
-    commandInput.placeholder = `[#deadline-hub] Bảng tin 7 ngày tự động · Nhập tin nhắn dưới danh nghĩa ${p.name}...`;
+    commandInput.placeholder = `🔒 Bảng tin chỉ đọc · Chỉ Giảng viên & Ban tổ chức mới có quyền đăng thông báo...`;
   } else if (activeChannel === "lab-assignments") {
-    commandInput.placeholder = `[#lab-assignments] Nhập tin của ${p.name} (ví dụ: Hạn nộp Lab 2 khi nào? Link nộp ở đâu?)...`;
+    commandInput.placeholder = `[#lab-assignments] Thảo luận với bạn học & TA (ví dụ: Ai làm xong câu 3 notebook chưa?)...`;
   } else if (activeChannel === "quiz-updates") {
-    commandInput.placeholder = `[#quiz-updates] Nhập tin của ${p.name} (ví dụ: Quiz 1 làm trong bao lâu?)...`;
+    commandInput.placeholder = `[#quiz-updates] Thảo luận về đề thi Quiz với bạn học & TA...`;
   } else {
     commandInput.placeholder = `[#${activeChannel}] Nhập tin nhắn dưới danh nghĩa ${p.name}...`;
   }
@@ -786,6 +925,17 @@ function updateComposerPlaceholder() {
 function switchChannel(channelId) {
   if (!channelsInfo[channelId]) return;
   activeChannel = channelId;
+
+  if (channelId === "deadline-hub") {
+    unseenUpdates = 0;
+    updateDeadlineHubBadge(0);
+    // On-demand sync: cập nhật tức thì nếu có thông báo thường mới từ backend
+    fetchAndSyncDigestFromBackend().then((hasNew) => {
+      if (hasNew && activeChannel === "deadline-hub") {
+        renderChannelFeed("deadline-hub");
+      }
+    });
+  }
 
   document.querySelectorAll(".channel-list .channel").forEach((btn) => {
     const isTarget = btn.dataset.channel === channelId;
@@ -798,7 +948,6 @@ function switchChannel(channelId) {
   if (activeChannelTitle) activeChannelTitle.textContent = info.title || channelId;
   if (activeChannelDesc) activeChannelDesc.textContent = info.desc || "";
 
-  updateComposerPlaceholder();
   renderChannelFeed(channelId);
 }
 
@@ -905,7 +1054,32 @@ function markScenario(name) {
 // PROCESSING NEW MESSAGES & TRIGGERING ALERTS
 // ============================================================================
 
-const BACKEND_API_URL = (window.location.origin && window.location.origin.startsWith("http")) ? window.location.origin : "http://127.0.0.1:8000";
+const BACKEND_API_URL = (window.location.port === "8000") ? window.location.origin : "http://127.0.0.1:8000";
+
+async function persistMessageToBackend(channelName, msgObj) {
+  try {
+    const cleanCh = String(channelName).replace("chan_", "").replace("#", "").trim();
+    await fetch(`${BACKEND_API_URL}/channels/${cleanCh}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(msgObj)
+    });
+  } catch (err) {
+    console.warn(`[Persist] Không thể lưu tin nhắn vào backend channel ${channelName}:`, err);
+  }
+}
+
+async function persistDeadlineToBackend(dlObj) {
+  try {
+    await fetch(`${BACKEND_API_URL}/deadlines`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dlObj)
+    });
+  } catch (err) {
+    console.warn("[Persist] Không thể lưu deadline vào backend:", err);
+  }
+}
 
 async function checkBackendStatus() {
   const pill = document.querySelector("#backendStatusPill");
@@ -982,12 +1156,13 @@ function parseVietnameseDateTime(text) {
   } else if (lower.includes("19/09") || lower.includes("19-09") || lower.includes("thứ bảy")) {
     dateStr = "Thứ Bảy (19/09/2026)";
   } else {
-    dateStr = "Hôm nay (17/09/2026)";
+    dateStr = "";
   }
 
   if (timeStr && dateStr) return `${timeStr} · ${dateStr}`;
   if (timeStr) return `${timeStr} · Hôm nay (17/09/2026)`;
-  return dateStr;
+  // Zero-Hallucination: Không tự trả về datetime khi không có giờ cụ thể
+  return null;
 }
 
 function extractEventTitle(text, isMeeting) {
@@ -1019,7 +1194,7 @@ function formatIsoToDisplayTime(isoStr) {
   return `${hour}:${minute} · ${relStr} (${day}/${month}/${year})`;
 }
 
-async function callBackendDiscordEvent(channelId, author, text, msgId, alertMsgId) {
+async function callBackendDiscordEvent(channelId, author, text, msgId) {
   try {
     const rawPayload = {
       t: "MESSAGE_CREATE",
@@ -1044,106 +1219,287 @@ async function callBackendDiscordEvent(channelId, author, text, msgId, alertMsgI
     if (res.ok) {
       const data = await res.json();
       console.log("[LIVE BACKEND AI PIPELINE RESPONSE]", data);
+      if (data.key_status === "QUOTA_EXCEEDED") {
+        showToast("⚠️ Gemini API đã hết hạn ngạch (429 Quota Exceeded). Hệ thống đã chuyển sang Fallback Engine an toàn!");
+      }
       if (data.status === "PROCESSED" && data.saved_document) {
-        const exists = events.findIndex(e => e._id === data.saved_document._id);
-        if (exists >= 0) events[exists] = data.saved_document;
-        else events.unshift(data.saved_document);
+        const doc = data.saved_document;
+        const ai = data.ai_output || {};
+        const priority = doc.system?.notification_priority || "P2";
+        const isConflict = doc.system?.conflict_detected;
+        const conflictNote = doc.system?.conflict_note;
+        const { meetLink, formLink } = extractLinksFromText(text);
 
-        // Update alert card in deadline-hub if present
-        if (alertMsgId && channelMessages["deadline-hub"]) {
-          const alert = channelMessages["deadline-hub"].find(m => m.id === alertMsgId);
-          if (alert && data.ai_output) {
-            const ai = data.ai_output;
-            const isMeeting = ai.classification?.type === "MEETING";
-            if (ai.content?.title) {
-              alert.alertTitle = isMeeting 
-                ? `🤝 LỊCH HỌP MỚI: ${ai.content.title}` 
-                : `🚨 THÔNG BÁO KHẨN: ${ai.content.title}`;
-            }
-            if (isMeeting && ai.schedule?.start_time) {
-              alert.newDeadline = formatIsoToDisplayTime(ai.schedule.start_time);
-            } else if (!isMeeting && ai.schedule?.deadline) {
-              alert.newDeadline = formatIsoToDisplayTime(ai.schedule.deadline);
-            } else if (ai.schedule?.start_time) {
-              alert.newDeadline = formatIsoToDisplayTime(ai.schedule.start_time);
-            }
-            if (data.saved_document?.source?.message_id) {
-              alert.sourceMsgId = data.saved_document.source.message_id;
-            }
-            if (activeChannel === "deadline-hub") {
-              renderChannelFeed("deadline-hub");
-            }
+        // Update events list
+        const existsIdx = events.findIndex(e => e._id === doc._id);
+        if (existsIdx >= 0) events[existsIdx] = doc;
+        else events.unshift(doc);
+
+        // Deduplicate / synchronize with frontend deadlines & schedule list
+        const iso = doc.schedule?.deadline || doc.schedule?.start_time;
+        if (iso) {
+          const isMeeting = doc.classification?.type === "MEETING";
+          const candidate = {
+            id: doc.system?.topic_key || `evt_${Date.now()}`,
+            assignment_code: doc.system?.topic_key,
+            title: doc.content?.title || text,
+            type: isMeeting ? "MEETING" : "DEADLINE",
+            due_date: iso.slice(0, 10),
+            due_time: iso.slice(11, 16)
+          };
+          const canonicalKey = getCanonicalEventKey(candidate);
+          const targetDl = deadlines.find(d => getCanonicalEventKey(d) === canonicalKey || d.assignment_code === candidate.id || d.id === candidate.id);
+          if (targetDl) {
+            targetDl.iso_deadline = iso;
+            targetDl.due_date = iso.slice(0, 10);
+            targetDl.due_time = iso.slice(11, 16);
+            targetDl.time = `${targetDl.due_time} (${targetDl.due_date})`;
+            targetDl.quote = doc.content?.summary || text;
+            if (formLink) targetDl.submission_link = formLink;
+            if (meetLink) targetDl.meetLink = meetLink;
+            if (priority === "P0") targetDl.is_extension = true;
+            if (msgId) targetDl.source_message_id = msgId;
+          } else {
+            deadlines.unshift({
+              id: canonicalKey,
+              assignment_code: canonicalKey,
+              title: doc.content?.title || (isMeeting ? "Lịch họp mới" : "Bài tập mới"),
+              type: doc.classification?.type || "DEADLINE",
+              due_date: iso.slice(0, 10),
+              due_time: iso.slice(11, 16),
+              time: `${iso.slice(11, 16)} (${iso.slice(0, 10)})`,
+              iso_deadline: iso,
+              submission_link: formLink || (isMeeting ? null : "https://forms.gle/vlearn-submit"),
+              meetLink: meetLink || (isMeeting ? "https://meet.google.com/abc-defg-hij" : null),
+              format: isMeeting ? "Google Meet trực tuyến" : "File notebook .ipynb hoặc link form",
+              source_channel: `#${channelId}`,
+              source: `#${channelId}`,
+              sourceLabel: `${author.name} (${author.role})`,
+              source_message_id: msgId,
+              status: "ACTIVE",
+              is_important: doc.classification?.importance === "HIGH",
+              confidence: Math.round((doc.classification?.confidence || 0.95) * 100),
+              quote: doc.content?.summary || text,
+              author_name: author.name,
+              author_role: author.role
+            });
           }
         }
 
-        if (data.ai_output) {
-          const ai = data.ai_output;
-          updatePipelineTrace({
-            status: ai.classification.type,
-            tone: ai.classification.importance === "HIGH" ? "rejected" : "found",
-            signal: `AI Gemini: "${ai.content.title}"`,
-            ruleGate: `PASS (${author.role} + #${channelId})`,
-            importance: `${ai.classification.importance} · AI: ${Math.round((ai.classification.confidence || 0.95) * 100)}%`,
-            targetData: "data/events.json (Doc Schema)",
-            action: "Lưu JSON & Đồng bộ sang #deadline-hub",
-            step: 4
-          });
+        // --- SMART NOTIFICATION DISPATCH (P0, P1, P2, P3) ---
+        if (!channelMessages["deadline-hub-bulletin"]) channelMessages["deadline-hub-bulletin"] = [];
+        if (!channelMessages["deadline-hub"]) channelMessages["deadline-hub"] = [];
+
+        if (isConflict) {
+          // P0: CONFLICT DETECTED
+          markScenario("conflict");
+          updatePipelineTrace(pipelineScenarios.conflict);
+          const conflictMsg = {
+            id: `conflict_${Date.now()}`,
+            channel: "deadline-hub",
+            author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+            type: "bot_embed",
+            sourceChannel: channelId,
+            sourceMsgId: msgId,
+            content: "⚠️ **CẢNH BÁO XUNG ĐỘT KHẨN CẤP:** Phát hiện mâu thuẫn thông tin giữa các kênh!",
+            embed: {
+              badge: "⚠️ PHÁT HIỆN MÂU THUẪN MỐC NỘP SÁT HẠN",
+              badgeType: "yellow",
+              title: doc.content?.title || "Phát hiện xung đột lịch",
+              deadline: conflictNote || `Lệch mốc thời gian giữa thông báo mới và dữ liệu đã lưu.`,
+              source: `Tin mới từ ${author.name} trong #${channelId}`,
+              sourceChannel: channelId,
+              sourceMsgId: msgId,
+              status: "CONFLICT",
+              note: "Đã giữ nguyên bản cũ và gắn cờ CONFLICT, tag @TA và @GiảngViên vào thống nhất."
+            },
+            timestamp: now()
+          };
+          channelMessages["deadline-hub-bulletin"].push(conflictMsg);
+          channelMessages["deadline-hub"].push(conflictMsg);
+          persistMessageToBackend("deadline-hub", conflictMsg);
+          showToast("⚠️ Phát hiện xung đột: Đã BẮN THẺ CẢNH BÁO VÀNG sang #deadline-hub!");
+          notifyHubUpdate();
+        } else if (priority === "P0") {
+          // P0: URGENT EXTENSION / CRITICAL ALERT
+          markScenario("urgent");
+          updatePipelineTrace(pipelineScenarios.urgent);
+          const parsedTime = doc.schedule?.deadline ? formatIsoToDisplayTime(doc.schedule.deadline) : parseVietnameseDateTime(text);
+          const urgentMsg = {
+            id: `alert_${Date.now()}`,
+            channel: "deadline-hub",
+            author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+            type: "urgent_alert",
+            alertType: "deadline",
+            alertTitle: `🚨 THÔNG BÁO KHẨN: ${doc.content?.title || "Gia hạn khẩn cấp"}`,
+            content: `Thông báo khẩn cấp từ ${author.name}: ${text}`,
+            newDeadline: parsedTime,
+            meetLink: meetLink,
+            formLink: formLink,
+            author_name: author.name,
+            source: `#${channelId}`,
+            sourceChannel: channelId,
+            sourceMsgId: msgId,
+            timestamp: now()
+          };
+          channelMessages["deadline-hub-bulletin"].push(urgentMsg);
+          channelMessages["deadline-hub"].push(urgentMsg);
+          persistMessageToBackend("deadline-hub", urgentMsg);
+          showToast("🚨 Đã gửi THÔNG BÁO KHẨN CẤP sang #deadline-hub!");
+          notifyHubUpdate();
+        } else if (priority === "P1") {
+          // P1: IMPORTANT NEW DEADLINE OR MEETING
+          const isMeeting = doc.classification?.type === "MEETING";
+          const parsedTime = isMeeting 
+            ? (doc.schedule?.start_time ? formatIsoToDisplayTime(doc.schedule.start_time) : null)
+            : (doc.schedule?.deadline ? formatIsoToDisplayTime(doc.schedule.deadline) : null);
+
+          if (!parsedTime) {
+            showToast(`ℹ️ Đã ghi nhận thông báo từ ${author.name} (Chưa có mốc thời gian cụ thể, không lập thẻ lịch hẹn).`);
+            return;
+          }
+
+          const alertMsg = {
+            id: `p1_${Date.now()}`,
+            channel: "deadline-hub",
+            author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+            type: "urgent_alert",
+            alertType: isMeeting ? "meeting" : "deadline",
+            alertTitle: isMeeting ? `🤝 LỊCH HỌP MỚI: ${doc.content?.title}` : `⚡ DEADLINE MỚI: ${doc.content?.title}`,
+            content: `Thông báo từ ${author.name}: ${text}`,
+            newDeadline: parsedTime,
+            meetLink: meetLink,
+            formLink: formLink,
+            author_name: author.name,
+            source: `#${channelId}`,
+            sourceChannel: channelId,
+            sourceMsgId: msgId,
+            timestamp: now()
+          };
+          channelMessages["deadline-hub-bulletin"].push(alertMsg);
+          channelMessages["deadline-hub"].push(alertMsg);
+          persistMessageToBackend("deadline-hub", alertMsg);
+          showToast(isMeeting ? "🤝 Đã gửi THẺ LỊCH HỌP sang #deadline-hub!" : "⚡ Đã gửi THẺ DEADLINE MỚI sang #deadline-hub!");
+          notifyHubUpdate();
+        } else if (priority === "P2") {
+          // P2: GENERAL NOTIFICATION (THÔNG BÁO THƯỜNG / NHẮC NHỞ)
+          // Không spam thẻ khẩn cấp, cập nhật ngầm vào bảng tin và báo nhẹ
+          showToast(`ℹ️ Đã ghi nhận thông báo thường từ ${author.name} vào hệ thống.`);
+          notifyHubUpdate(false);
+        } else {
+          // P3: REFERENCE ONLY
+          console.log("[P3 Reference Document Stored]", doc);
         }
 
-        showToast("⚡ FastAPI AI Backend: Gemini đã trích xuất và lưu vào data/events.json!");
+        // Trace pipeline updates
+        updatePipelineTrace({
+          status: `${priority} · ${doc.classification.type}`,
+          tone: priority === "P0" ? "rejected" : (priority === "P1" ? "found" : "review"),
+          signal: `AI [${doc.system.topic_key || "generic"}]: "${doc.content.title}"`,
+          ruleGate: `PASS (${author.role} + #${channelId})`,
+          importance: `${doc.classification.importance} · ${priority}`,
+          targetData: "data/events.json (Doc Schema)",
+          action: priority === "P0" || priority === "P1" ? "Bắn thẻ Alert + Cập nhật Bảng tin" : "Lưu Store & Cập nhật Bảng tin tuần",
+          step: 4
+        });
+
+        return data;
       }
     }
   } catch (err) {
-    console.warn("Backend offline, running standalone.", err);
+    console.warn("Backend offline, running standalone fallback.", err);
+    runLocalFallbackProcessing(channelId, author, text, msgId);
   }
 }
 
-function processNewMessage(channelId, authorKey, text) {
-  const author = personas[authorKey] || personas.student_lananh;
-  const msgId = `msg_${Date.now()}`;
-  const msgObj = {
-    id: msgId,
-    channel: channelId,
-    author: { name: author.name, role: author.role, avatar: author.avatar, type: author.type },
-    content: text,
-    timestamp: now(),
-    type: "chat"
-  };
+// Giải pháp 1: Cơ chế "Xóa bản cũ & Bắn bản mới nhất xuống đáy" (Chuẩn Discord Bot)
+function repostWeeklyDigestAtBottom() {
+  const hubChannels = ["deadline-hub", "deadline-hub-bulletin"];
+  hubChannels.forEach(ch => {
+    if (!channelMessages[ch]) return;
+    // 1. Xóa bản Bảng tin cũ bị kẹt ở trên
+    channelMessages[ch] = channelMessages[ch].filter(m => m.type !== "weekly_digest");
+    // 2. Tái tạo Bảng tin mới toanh và đẩy xuống vị trí cuối cùng
+    channelMessages[ch].push({
+      id: `msg_hub_digest_${Date.now()}`,
+      author: {
+        name: "Deadline Bot",
+        role: "APP",
+        avatar: "D",
+        type: "bot"
+      },
+      timestamp: `${new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} · Hôm nay`,
+      type: "weekly_digest"
+    });
+  });
+}
 
-  if (!channelMessages[channelId]) channelMessages[channelId] = [];
-  channelMessages[channelId].push(msgObj);
+function notifyHubUpdate(reRenderNow = true) {
+  // Luôn dời Bảng tin 7 ngày xuống đáy cùng sau khi nhận các thẻ thông báo khẩn
+  repostWeeklyDigestAtBottom();
 
-  if (activeChannel === channelId) {
-    renderChannelFeed(channelId);
+  if (activeChannel === "deadline-hub") {
+    if (reRenderNow) {
+      renderChannelFeed("deadline-hub");
+      scrollFeedToLatest("smooth");
+    }
+  } else {
+    unseenUpdates++;
+    updateDeadlineHubBadge(unseenUpdates);
   }
+}
 
-  const whitelistChannels = ["announcements", "lab-assignments", "quiz-updates", "hackathon"];
-  const isWhitelistChannel = whitelistChannels.includes(channelId);
-  const isAuthorityRole = ["teacher", "ta", "admin"].includes(author.type);
+// Fallback logic when backend is not responding
+function runLocalFallbackProcessing(channelId, author, text, msgId) {
   const lowerText = text.toLowerCase();
-
   const { meetLink, formLink } = extractLinksFromText(text);
-
-  const isMeeting = isAuthorityRole && (lowerText.includes("họp") || lowerText.includes("meeting") || lowerText.includes("meet"));
-  const isUrgent = isAuthorityRole && (lowerText.includes("khẩn cấp") || lowerText.includes("lỗi") || lowerText.includes("đột xuất") || lowerText.includes("thêm 2 tiếng") || lowerText.includes("gia hạn"));
-  const isNewDaily = isAuthorityRole && (lowerText.includes("bổ sung") || lowerText.includes("mới phát sinh") || lowerText.includes("mini quiz"));
-  const isConflict = isAuthorityRole && (lowerText.includes("18/09") && lowerText.includes("lab 2") && channelId === "lab-assignments");
+  const parsedTime = parseVietnameseDateTime(text);
+  const isMeeting = lowerText.includes("họp") || lowerText.includes("meeting");
+  const isUrgent = lowerText.includes("khẩn cấp") || lowerText.includes("gia hạn") || lowerText.includes("thêm");
 
   if (isMeeting) {
+    const meetTimeMatch = parsedTime ? parsedTime.match(/\d{1,2}:\d{2}/) : null;
+    if (!meetTimeMatch) {
+      showToast(`ℹ️ Đã ghi nhận thông báo họp từ ${author.name} (Chưa có giờ họp cụ thể, không lập lịch hẹn).`);
+      return;
+    }
     const alertId = `meeting_${Date.now()}`;
-    const parsedTime = parseVietnameseDateTime(text);
-    const parsedTitle = extractEventTitle(text, true);
+    const meetDate = (parsedTime && parsedTime.includes("18/09")) ? "2026-09-18" : ((parsedTime && parsedTime.includes("19/09")) ? "2026-09-19" : "2026-09-17");
+    const meetTime = meetTimeMatch[0];
+    const meetTitle = extractEventTitle(text, true);
 
-    updatePipelineTrace({
-      status: "MEETING EVENT",
-      tone: "found",
-      signal: parsedTitle,
-      ruleGate: `PASS (${author.role} + Lịch họp)`,
-      importance: "QUAN TRỌNG (@everyone)",
-      targetData: "data/events.json (Doc Schema)",
-      action: "Gửi thẻ họp & cập nhật bản tin 7 ngày",
-      step: 4
-    });
+    const existingMeet = deadlines.find(d => (d.type === "MEETING" && (d.due_date === meetDate || d.date === meetDate)) || d.title === meetTitle);
+    if (existingMeet) {
+      existingMeet.title = meetTitle;
+      existingMeet.due_time = meetTime;
+      existingMeet.time = `${meetTime} (${meetDate})`;
+      existingMeet.iso_deadline = `${meetDate}T${meetTime}:00+07:00`;
+      if (meetLink) existingMeet.meetLink = meetLink;
+      if (msgId) existingMeet.source_message_id = msgId;
+    } else {
+      deadlines.unshift({
+        id: alertId,
+        assignment_code: alertId,
+        title: meetTitle,
+        type: "MEETING",
+        due_date: meetDate,
+        due_time: meetTime,
+        time: `${meetTime} (${meetDate})`,
+        iso_deadline: `${meetDate}T${meetTime}:00+07:00`,
+        meetLink: meetLink || "https://meet.google.com/abc-defg-hij",
+        format: "Google Meet trực tuyến",
+        source_channel: `#${channelId}`,
+        source: `#${channelId}`,
+        sourceLabel: `${author.name} (${author.role})`,
+        source_message_id: msgId,
+        status: "ACTIVE",
+        is_important: true,
+        confidence: 95,
+        quote: text,
+        author_name: author.name,
+        author_role: author.role
+      });
+    }
 
     const meetingMsg = {
       id: alertId,
@@ -1151,7 +1507,7 @@ function processNewMessage(channelId, authorKey, text) {
       author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
       type: "urgent_alert",
       alertType: "meeting",
-      alertTitle: parsedTitle,
+      alertTitle: "🤝 LỊCH HỌP MỚI / THAY ĐỔI ĐỘT XUẤT",
       content: `Thông báo từ ${author.name}: ${text}`,
       newDeadline: parsedTime,
       meetLink: meetLink,
@@ -1162,30 +1518,51 @@ function processNewMessage(channelId, authorKey, text) {
       sourceMsgId: msgId,
       timestamp: now()
     };
-    channelMessages["deadline-hub"].push(meetingMsg);
-    showToast("🤝 Đã gửi THẺ LỊCH HỌP sang #deadline-hub!");
-    if (activeChannel === "deadline-hub") renderChannelFeed("deadline-hub");
-
-    callBackendDiscordEvent(channelId, author, text, msgId, alertId);
-    return;
-  }
-
-  if (isUrgent) {
-    markScenario("urgent");
+    channelMessages["deadline-hub-bulletin"]?.push(meetingMsg);
+    channelMessages["deadline-hub"]?.push(meetingMsg);
+    persistMessageToBackend("deadline-hub", meetingMsg);
+    showToast("🤝 [Offline Mode] Đã gửi THẺ LỊCH HỌP sang #deadline-hub!");
+    notifyHubUpdate();
+  } else if (isUrgent) {
     const alertId = `alert_${Date.now()}`;
-    const parsedTime = parseVietnameseDateTime(text);
-    const parsedTitle = extractEventTitle(text, false);
-
-    updatePipelineTrace(pipelineScenarios.urgent);
-
-    deadlines.forEach((d) => {
-      if (d.assignment_code === "lab-2") {
-        d.time = parsedTime.includes("02:00") ? "02:00 (sáng 18/09)" : "23:59 (17/09)";
-        d.due_time = parsedTime.includes("02:00") ? "02:00" : "23:59";
-        d.quote = text;
-        if (formLink) d.submission_link = formLink;
-      }
-    });
+    const dlDate = parsedTime.includes("18/09") ? "2026-09-18" : (parsedTime.includes("19/09") ? "2026-09-19" : "2026-09-17");
+    const dlTimeMatch = parsedTime.match(/\d{1,2}:\d{2}/);
+    const dlTime = dlTimeMatch ? dlTimeMatch[0] : "02:00";
+    const lab2 = deadlines.find(d => d.assignment_code === "lab-2" || d.id === "lab-2" || (d.title && d.title.toLowerCase().includes("lab 2")));
+    if (lab2 && (text.toLowerCase().includes("lab 2") || text.toLowerCase().includes("lab2"))) {
+      lab2.due_date = dlDate;
+      lab2.due_time = dlTime;
+      lab2.time = `${dlTime} (${dlDate})`;
+      lab2.iso_deadline = `${dlDate}T${dlTime}:00+07:00`;
+      lab2.is_extension = true;
+      lab2.quote = text;
+      if (formLink) lab2.submission_link = formLink;
+      if (msgId) lab2.source_message_id = msgId;
+    } else {
+      deadlines.unshift({
+        id: alertId,
+        assignment_code: alertId,
+        title: extractEventTitle(text, false),
+        type: "DEADLINE",
+        due_date: dlDate,
+        due_time: dlTime,
+        time: `${dlTime} (${dlDate})`,
+        iso_deadline: `${dlDate}T${dlTime}:00+07:00`,
+        submission_link: formLink || "https://forms.gle/lab2-submit-k4",
+        format: "File notebook .ipynb hoặc link form",
+        source_channel: `#${channelId}`,
+        source: `#${channelId}`,
+        sourceLabel: `${author.name} (${author.role})`,
+        source_message_id: msgId,
+        status: "ACTIVE",
+        is_important: true,
+        is_extension: true,
+        confidence: 95,
+        quote: text,
+        author_name: author.name,
+        author_role: author.role
+      });
+    }
 
     const urgentMsg = {
       id: alertId,
@@ -1193,8 +1570,8 @@ function processNewMessage(channelId, authorKey, text) {
       author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
       type: "urgent_alert",
       alertType: "deadline",
-      alertTitle: parsedTitle,
-      content: `Thông báo khẩn cấp từ ${author.name}: ${text}`,
+      alertTitle: "🚨 THÔNG BÁO KHẨN CẤP / GIA HẠN",
+      content: `Thông báo từ ${author.name}: ${text}`,
       newDeadline: parsedTime,
       meetLink: meetLink,
       formLink: formLink,
@@ -1204,212 +1581,287 @@ function processNewMessage(channelId, authorKey, text) {
       sourceMsgId: msgId,
       timestamp: now()
     };
-    channelMessages["deadline-hub"].push(urgentMsg);
-    showToast("🚨 Đã gửi THÔNG BÁO KHẨN CẤP sang #deadline-hub!");
-    if (activeChannel === "deadline-hub") renderChannelFeed("deadline-hub");
+    channelMessages["deadline-hub-bulletin"]?.push(urgentMsg);
+    channelMessages["deadline-hub"]?.push(urgentMsg);
+    persistMessageToBackend("deadline-hub", urgentMsg);
+    showToast("🚨 [Offline Mode] Đã gửi THÔNG BÁO KHẨN sang #deadline-hub!");
+    notifyHubUpdate();
+  }
+}
 
-    callBackendDiscordEvent(channelId, author, text, msgId, alertId);
+function processNewMessage(channelId, authorKey, text) {
+  const author = personas[authorKey] || personas.student_lananh;
+  const isAuthorityRole = ["teacher", "ta", "admin"].includes(author.type);
+  const msgId = `msg_${Date.now()}`;
+  const msgObj = {
+    id: msgId,
+    channel: channelId,
+    author: { name: author.name, role: author.role, avatar: author.avatar, type: author.type },
+    content: text,
+    timestamp: now(),
+    type: "chat"
+  };
+
+  // Case 1: In #deadline-hub
+  if (channelId === "deadline-hub") {
+    if (!isAuthorityRole) {
+      showToast("🔒 Bảng tin chỉ đọc! Học viên không được gửi tin tại đây.");
+      return;
+    }
+    if (!channelMessages["deadline-hub-bulletin"]) channelMessages["deadline-hub-bulletin"] = [];
+    channelMessages["deadline-hub-bulletin"].push(msgObj);
+    if (!channelMessages["deadline-hub"]) channelMessages["deadline-hub"] = [];
+    channelMessages["deadline-hub"].push(msgObj);
+    persistMessageToBackend("deadline-hub", msgObj);
+    renderChannelFeed("deadline-hub");
+  } else {
+    // Other channels: push message to feed
+    if (!channelMessages[channelId]) channelMessages[channelId] = [];
+    channelMessages[channelId].push(msgObj);
+    persistMessageToBackend(channelId, msgObj);
+    if (activeChannel === channelId) {
+      renderChannelFeed(channelId);
+    }
+  }
+
+  // Student discussion in channels: Silent Observer
+  if (!isAuthorityRole) {
+    showToast(`💬 Đã gửi tin vào #${channelId}. Kênh thảo luận học viên, Bot không tạo lịch/deadline từ học viên.`);
     return;
   }
 
-  if (isNewDaily) {
-    markScenario("new_daily");
-    updatePipelineTrace(pipelineScenarios.new_daily);
-
-    const alertId = `daily_${Date.now()}`;
-    const parsedTime = parseVietnameseDateTime(text);
-    const newDailyItem = {
-      id: `new-daily-${Date.now()}`,
-      assignment_code: "mini-quiz-daily",
-      title: "Mini Quiz 15 phút · Tokenization & WordPiece",
-      date: "2026-09-17",
-      due_date: "2026-09-17",
-      time: "18:00",
-      due_time: "18:00",
-      type: "quiz",
-      submission_link: formLink || "https://vlearn.edu.vn/courses/ai-k4/mini-quiz",
-      source_channel: `#${channelId}`,
-      source: `#${channelId}`,
-      sourceLabel: `${author.name} (${author.role})`,
-      source_message_id: msgId,
-      status: "ACTIVE",
-      is_important: true,
-      confidence: 100,
-      quote: text,
-      author_name: author.name,
-      author_role: author.role
-    };
-    deadlines.unshift(newDailyItem);
-
-    const dailyAlert = {
-      id: alertId,
-      channel: "deadline-hub",
-      author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
-      type: "urgent_alert",
-      alertType: "deadline",
-      alertTitle: "⚡ DEADLINE MỚI PHÁT SINH TRONG NGÀY (Chưa có trong lịch tuần)",
-      content: `Giảng viên vừa công bố bài tập mới trong ngày hôm nay: ${text}`,
-      newDeadline: parsedTime,
-      meetLink: meetLink,
-      formLink: formLink || "https://vlearn.edu.vn/courses/ai-k4/mini-quiz",
-      author_name: author.name,
-      source: `#${channelId}`,
-      sourceChannel: channelId,
-      sourceMsgId: msgId,
-      timestamp: now()
-    };
-    channelMessages["deadline-hub"].push(dailyAlert);
-    showToast("⚡ Đã ghi nhận bài mới phát sinh trong ngày và BẮN THÔNG BÁO MỚI sang #deadline-hub!");
-    if (activeChannel === "deadline-hub") renderChannelFeed("deadline-hub");
-
-    callBackendDiscordEvent(channelId, author, text, msgId, alertId);
-    return;
-  }
-
-  if (isConflict) {
-    markScenario("conflict");
-    updatePipelineTrace(pipelineScenarios.conflict);
-
-    const conflictMsg = {
-      id: `conflict_${Date.now()}`,
-      channel: "deadline-hub",
-      author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
-      type: "bot_embed",
-      sourceChannel: channelId,
-      sourceMsgId: msgId,
-      content: "⚠️ **CẢNH BÁO XUNG ĐỘT KHẨN CẤP:** Phát hiện thông báo mâu thuẫn giữa các kênh!",
-      embed: {
-        badge: "⚠️ PHÁT HIỆN MÂU THUẪN MỐC NỘP SÁT HẠN",
-        badgeType: "yellow",
-        title: "Lab 2 · Prompt Engineering",
-        deadline: "Mốc 1: 23:59 17/09 (#announcements) vs Mốc 2: 18:00 18/09 (#lab-assignments)",
-        source: `Tin mới từ ${author.name} trong #${channelId}`,
-        sourceChannel: channelId,
-        sourceMsgId: msgId,
-        status: "CONFLICT",
-        note: "Đã giữ nguyên bản cũ và gắn cờ CONFLICT, tag @TA và @GiảngViên vào thống nhất."
-      },
-      timestamp: now()
-    };
-    channelMessages["deadline-hub"].push(conflictMsg);
-    showToast("⚠️ Phát hiện xung đột: Đã BẮN THẺ CẢNH BÁO VÀNG sang #deadline-hub!");
-    if (activeChannel === "deadline-hub") renderChannelFeed("deadline-hub");
-
-    callBackendDiscordEvent(channelId, author, text, msgId);
-    return;
-  }
-
-  // Case D: Thảo luận bình thường của học viên tại kênh bài tập
-  if (!isAuthorityRole && (lowerText.includes("hạn") || lowerText.includes("khi nào") || lowerText.includes("mấy giờ"))) {
-    markScenario("normal");
-    updatePipelineTrace(pipelineScenarios.normal);
-
-    window.setTimeout(() => {
-      const replyMsg = {
-        id: `reply_${Date.now()}`,
-        channel: channelId,
-        author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
-        replyTo: author.name,
-        content: `💬 [Trả lời @${author.name}] 📌 Hạn nộp **Lab 2: Prompt Engineering** là **23:59 hôm nay (17/09/2026)**. Form: https://forms.gle/lab2-submit-k4. Lịch tổng hợp 7 ngày đang hiển thị sẵn tại kênh **#deadline-hub** nhé!`,
-        timestamp: now(),
-        type: "local_reply"
-      };
-      channelMessages[channelId].push(replyMsg);
-      if (activeChannel === channelId) renderChannelFeed(channelId);
-      showToast("Bot chỉ trả lời tại chỗ trong kênh này, KHÔNG gửi tin mới sang #deadline-hub.");
-    }, 500);
-    return;
-  }
-
-  // Regular chat: do nothing in deadline-hub
+  // Authority message: Let Backend AI extract semantics & route priority P0-P3 dynamically
   callBackendDiscordEvent(channelId, author, text, msgId);
-  updatePipelineTrace({
-    status: "CHAT THƯỜNG",
-    tone: "idle",
-    signal: `#${channelId} · ${author.name}`,
-    ruleGate: "Chat thông thường",
-    importance: "KHÔNG LIÊN QUAN",
-    targetData: "Lưu nội bộ kênh",
-    action: "Không gửi tin sang #deadline-hub",
-    step: 2
-  });
 }
 
 // ============================================================================
-// DATA INSPECTOR MODAL
+// PIPELINE AUDIT LOG VIEWER (VISUAL + TEXT MODES)
 // ============================================================================
 
-let currentJsonTab = "events";
+let rawLogsCache = "";
+let currentLogStageFilter = "ALL";
+let logDisplayMode = "cards"; // "cards" hoặc "raw"
+
+const STAGE_META = {
+  "DISCORD_EVENT": { name: "Sự Kiện Đến", icon: "📩", color: "#5865f2", bg: "rgba(88,101,242,0.15)" },
+  "CANDIDATE_GATE": { name: "Bộ Lọc Gate", icon: "🚪", color: "#10b981", bg: "rgba(16,185,129,0.15)" },
+  "AI_EXTRACTOR": { name: "AI Gemini", icon: "🤖", color: "#a855f7", bg: "rgba(168,85,247,0.15)" },
+  "VALIDATOR": { name: "Xác Thực & Xung Đột", icon: "⚖️", color: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
+  "JSON_STORE": { name: "Lưu Kho Dữ Liệu", icon: "💾", color: "#06b6d4", bg: "rgba(6,182,212,0.15)" },
+  "DISCORD_FORMAT": { name: "Định Dạng Discord", icon: "📢", color: "#ec4899", bg: "rgba(236,72,153,0.15)" }
+};
 
 async function fetchPipelineLogs() {
   try {
-    const res = await fetch(`${BACKEND_API_URL}/logs?limit=150`);
+    const res = await fetch(`${BACKEND_API_URL}/logs?limit=200`);
     if (res.ok) {
       const data = await res.json();
       if (data.lines && Array.isArray(data.lines)) {
-        return data.lines.join("\n");
+        rawLogsCache = data.lines.join("\n");
+        return rawLogsCache;
       }
     }
   } catch (err) {
     console.warn("Could not fetch logs from backend:", err);
   }
-  return `[${new Date().toISOString()}] [CLIENT_OFFLINE] Không thể kết nối tới backend để đọc logs/pipeline.log. Hãy đảm bảo FastAPI backend đang chạy tại port 8000.`;
+  rawLogsCache = `[${new Date().toISOString()}] [CLIENT_OFFLINE] [DISCORD_EVENT] Không thể kết nối tới backend để đọc logs/pipeline.log. Hãy đảm bảo FastAPI backend đang chạy tại port 8000.`;
+  return rawLogsCache;
 }
 
-async function renderJsonViewer(tabName) {
-  currentJsonTab = tabName;
-  document.querySelectorAll(".json-tab-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.json === tabName);
-  });
+function parseLogLine(line) {
+  if (!line || line.startsWith("#")) return null;
+  // Format: [YYYY-MM-DD HH:MM:SS] [LEVEL] [STAGE] message | key=val · key=val
+  const match = line.match(/^\[(.*?)\]\s*\[(.*?)\]\s*\[(.*?)\]\s*(.*?)(?:\s*\|\s*(.*))?$/);
+  if (!match) return { raw: line };
 
-  const pathLabel = document.querySelector("#jsonViewerPath");
-  const codeBlock = document.querySelector("#jsonViewerCode");
+  const [, timestamp, level, stage, message, metaStr] = match;
+  const metaPairs = {};
+  if (metaStr) {
+    metaStr.split("·").forEach(pair => {
+      const parts = pair.split("=");
+      if (parts.length >= 2) {
+        const key = parts[0].trim();
+        const val = parts.slice(1).join("=").trim();
+        metaPairs[key] = val;
+      }
+    });
+  }
 
-  if (tabName === "pipeline_log") {
-    pathLabel.textContent = "logs/pipeline.log (Audit Log)";
-    codeBlock.textContent = "Đang tải logs/pipeline.log từ server...";
-    const logs = await fetchPipelineLogs();
-    codeBlock.textContent = logs;
+  return {
+    timestamp: timestamp.slice(11), // chỉ lấy HH:MM:SS cho gọn
+    fullTimestamp: timestamp,
+    level: level.trim(),
+    stage: stage.trim(),
+    message: message.trim(),
+    meta: metaPairs
+  };
+}
+
+function renderParsedLogCards() {
+  const container = document.querySelector("#logCardsContainer");
+  const codeEl = document.querySelector("#logViewerCode");
+  if (!container) return;
+
+  if (logDisplayMode === "raw") {
+    container.style.display = "none";
+    if (codeEl) {
+      codeEl.style.display = "block";
+      codeEl.textContent = rawLogsCache;
+    }
     return;
   }
 
-  let dataObj = null;
-  if (tabName === "events") {
-    pathLabel.textContent = "data/events.json (Document Schema)";
-    dataObj = events;
-  } else if (tabName === "deadlines") {
-    pathLabel.textContent = "data/deadlines.json";
-    dataObj = deadlines;
-  } else {
-    pathLabel.textContent = `data/channels/${tabName}.json`;
-    dataObj = channelMessages[tabName] || [];
+  container.style.display = "flex";
+  if (codeEl) codeEl.style.display = "none";
+
+  const lines = rawLogsCache.split("\n");
+  const parsedItems = lines
+    .map(parseLogLine)
+    .filter(item => item !== null);
+
+  const filtered = parsedItems.filter(item => {
+    if (currentLogStageFilter === "ALL") return true;
+    return item.stage === currentLogStageFilter;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="log-empty-state">Không có nhật ký nào thuộc công đoạn [${escapeHtml(currentLogStageFilter)}].</div>`;
+    return;
   }
 
-  codeBlock.textContent = JSON.stringify(dataObj, null, 2);
-}
+  // Render cards (đảo chiều để tin mới nhất nằm ở dưới hoặc trên, ở đây render xuôi dòng thời gian)
+  container.innerHTML = filtered.map(item => {
+    if (item.raw) {
+      return `<div class="log-card-raw">${escapeHtml(item.raw)}</div>`;
+    }
 
-function openDataInspector() {
-  renderJsonViewer(currentJsonTab);
-  openDialog(dataDialog);
+    const stageMeta = STAGE_META[item.stage] || { name: item.stage, icon: "🔹", color: "#94a3b8", bg: "rgba(148,163,184,0.15)" };
+    const isWarn = item.level === "WARN" || (item.message && (item.message.includes("xung đột") || item.message.includes("Từ chối")));
+    const borderLeftColor = isWarn ? "#ef4444" : stageMeta.color;
+
+    let metaChipsHtml = "";
+    if (item.meta && Object.keys(item.meta).length > 0) {
+      metaChipsHtml = `<div class="log-meta-chips">` +
+        Object.entries(item.meta).map(([k, v]) => {
+          let label = k;
+          if (k === "Author") label = "Tác giả";
+          else if (k === "Channel") label = "Kênh";
+          else if (k === "Reason") label = "Lý do";
+          else if (k === "Confidence") label = "Độ tin cậy";
+          else if (k === "Time") label = "Mốc giờ";
+          return `<span class="log-meta-chip"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(v)}</span>`;
+        }).join("") +
+        `</div>`;
+    }
+
+    return `
+      <div class="log-card-item ${isWarn ? 'log-card-warn' : ''}" style="border-left-color: ${borderLeftColor};">
+        <div class="log-card-header">
+          <div class="log-stage-tag" style="color:${stageMeta.color};background:${stageMeta.bg};">
+            <span>${stageMeta.icon}</span>
+            <strong>${escapeHtml(stageMeta.name)}</strong>
+          </div>
+          <span class="log-time-badge">${escapeHtml(item.timestamp)}</span>
+        </div>
+        <div class="log-card-body">
+          <p class="log-card-msg">${escapeHtml(item.message)}</p>
+          ${metaChipsHtml}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Tự động cuộn xuống dưới cùng để thấy hành động mới nhất
+  container.scrollTop = container.scrollHeight;
 }
 
 async function openLogViewer() {
-  const codeEl = document.querySelector("#logViewerCode");
-  if (codeEl) codeEl.textContent = "Đang tải logs từ logs/pipeline.log...";
   openDialog(document.querySelector("#logDialog"));
-  const logText = await fetchPipelineLogs();
-  if (codeEl) codeEl.textContent = logText;
+  const container = document.querySelector("#logCardsContainer");
+  if (container) container.innerHTML = `<div class="log-empty-state">Đang đồng bộ nhật ký từ server...</div>`;
+  await fetchPipelineLogs();
+  renderParsedLogCards();
+}
+
+function jumpToSourceMessage(rawChannel, rawMsgId, contextKw = "") {
+  const targetChannel = extractChannelName(rawChannel);
+  const targetMsgId = (rawMsgId || "").trim();
+
+  closeDialog(detailDialog);
+  closeDialog(dataDialog);
+  closeDialog(adminDialog);
+  closeDialog(correctionDialog);
+
+  switchChannel(targetChannel);
+
+  setTimeout(() => {
+    let el = null;
+    if (targetMsgId) {
+      el = document.querySelector(`[data-message-id="${targetMsgId}"]`) ||
+           document.querySelector(`[data-message-id="msg_${targetMsgId}"]`) ||
+           document.querySelector(`[data-message-id="${targetMsgId.replace(/^msg_/, '')}"]`) ||
+           document.getElementById(targetMsgId) ||
+           document.getElementById(`msg_${targetMsgId}`) ||
+           document.getElementById(targetMsgId.replace(/^msg_/, ''));
+    }
+
+    // Keyword search in messages of targetChannel
+    if (!el && contextKw) {
+      const kw = contextKw.toLowerCase();
+      const allMsgs = Array.from(document.querySelectorAll(`.discord-message[data-message-id]`));
+      const subKws = kw.split(/[:·\-\(\)]/).map(s => s.trim()).filter(s => s.length >= 3);
+      for (const msgEl of allMsgs) {
+        const text = msgEl.textContent.toLowerCase();
+        if (text.includes(kw) || subKws.some(k => text.includes(k.toLowerCase()))) {
+          el = msgEl;
+          break;
+        }
+      }
+    }
+
+    // Fallback: newest non-bot message in this channel
+    if (!el) {
+      const nonBotMsgs = document.querySelectorAll(`.discord-message:not(.bot-discord-message)`);
+      if (nonBotMsgs.length > 0) {
+        el = nonBotMsgs[nonBotMsgs.length - 1];
+      }
+    }
+
+    if (el) {
+      const feed = document.querySelector("#messageFeed");
+      if (feed) {
+        const feedRect = feed.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const targetScrollTop = feed.scrollTop + (elRect.top - feedRect.top) - (feedRect.height / 2) + (elRect.height / 2);
+        feed.scrollTo({ top: Math.max(0, targetScrollTop), behavior: "smooth" });
+      } else {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      el.classList.remove("highlight-flash");
+      void el.offsetWidth;
+      el.classList.add("highlight-flash");
+      setTimeout(() => el.classList.remove("highlight-flash"), 2600);
+      showToast(`📍 Đã nhảy tới tin nhắn thông báo gốc trong #${targetChannel}!`);
+    } else {
+      scrollFeedToLatest("smooth");
+      showToast(`📍 Đã chuyển sang kênh #${targetChannel}`);
+    }
+  }, 120);
 }
 
 function openDeadlineDetail(id) {
-  const item = deadlines.find((d) => d.id === id);
+  const item = deadlines.find((d) => d.id === id) || deadlines.find(d => getCanonicalEventKey(d) === id);
   if (!item) return;
   const dStr = item.due_date || item.date || "";
   const tStr = item.due_time || item.time || "";
 
-  const rawCh = item.source_channel || item.source || "announcements";
-  const chName = rawCh.replace("#", "").trim();
-  const srcMsgId = item.source_message_id || "";
+  const chName = extractChannelName(item.source_channel || item.source || "announcements");
+  let srcMsgId = item.source_message_id || "";
+  if (!srcMsgId) {
+    if (item.title?.toLowerCase().includes("lab 2")) srcMsgId = "msg_ann_01";
+    else if (item.title?.toLowerCase().includes("quiz")) srcMsgId = "msg_quiz_01";
+    else if (item.title?.toLowerCase().includes("hackathon")) srcMsgId = "msg_hack_01";
+  }
 
   document.querySelector("#detailTitle").textContent = item.title;
   document.querySelector("#detailContent").innerHTML = `
@@ -1421,8 +1873,9 @@ function openDeadlineDetail(id) {
       <div>
         <span class="confidence-chip" style="color:var(--green);font-weight:800;font-size:9px;">CÓ NGUỒN XÁC THỰC · ${item.confidence || 98}% · ${item.status}</span>
         <h3 style="margin:4px 0;">${tStr} · ${dStr.split("-").reverse().join("/")}</h3>
-        <p style="margin:3px 0;color:var(--muted);font-size:11px;">Kênh thông báo gốc: <button type="button" class="channel-jump-btn" data-jump-channel="${escapeHtml(chName)}" data-jump-msg="${escapeHtml(srcMsgId)}">#${escapeHtml(chName)} · Nhảy tới tin nhắn gốc ↗</button></p>
-        ${item.submission_link ? `<p style="margin:4px 0;"><a href="${item.submission_link}" target="_blank" style="color:var(--purple);font-weight:700;">🔗 Form nộp: ${escapeHtml(item.submission_link)}</a></p>` : ""}
+        <p style="margin:3px 0;color:var(--muted);font-size:11px;">Kênh thông báo gốc: <b>#${escapeHtml(chName)}</b></p>
+        ${item.meetLink ? `<p style="margin:4px 0;"><a href="${item.meetLink}" target="_blank" style="color:#2563eb;font-weight:700;">📹 Google Meet: ${escapeHtml(item.meetLink)}</a></p>` : ""}
+        ${item.submission_link && !item.meetLink ? `<p style="margin:4px 0;"><a href="${item.submission_link}" target="_blank" style="color:var(--purple);font-weight:700;">🔗 Form nộp: ${escapeHtml(item.submission_link)}</a></p>` : ""}
       </div>
     </div>
     <div class="evidence-box">
@@ -1430,10 +1883,11 @@ function openDeadlineDetail(id) {
       <blockquote>“${escapeHtml(item.quote || "Nguồn chính thức đã được xác thực.")}”</blockquote>
       <div class="evidence-meta">
         <span>Người đăng: <b>${escapeHtml(item.author_name || "GV/TA")}</b> (${escapeHtml(item.author_role || "Giảng viên")})</span>
-        <span>Kênh: <button type="button" class="channel-jump-btn" style="padding:1px 6px;font-size:9px;" data-jump-channel="${escapeHtml(chName)}" data-jump-msg="${escapeHtml(srcMsgId)}">#${escapeHtml(chName)} ↗</button></span>
+        <span>Kênh: <b>#${escapeHtml(chName)}</b></span>
       </div>
     </div>
     <div class="detail-actions">
+      <button class="primary-button channel-jump-btn" type="button" data-jump-channel="${escapeHtml(chName)}" data-jump-msg="${escapeHtml(srcMsgId)}" data-jump-kw="${escapeHtml(item.title)}" style="background:var(--blurple);color:#fff;font-weight:700;">🚀 Nhảy tới tin nhắn gốc #${escapeHtml(chName)} ↗</button>
       <button class="danger-button" type="button" data-action="report">⚑ Báo sai / Tag TA</button>
       <div><button class="secondary-button" type="button" data-close="detailDialog">Đóng</button></div>
     </div>`;
@@ -1448,32 +1902,9 @@ document.addEventListener("click", (event) => {
   const jumpBtn = event.target.closest("[data-jump-channel]");
   if (jumpBtn) {
     const rawTarget = jumpBtn.dataset.jumpChannel || "announcements";
-    const targetChannel = rawTarget.replace("#", "").trim();
-    const targetMsgId = jumpBtn.dataset.jumpMsg;
-
-    closeDialog(detailDialog);
-    closeDialog(dataDialog);
-    closeDialog(adminDialog);
-    closeDialog(correctionDialog);
-
-    if (targetChannel && channelsInfo[targetChannel]) {
-      switchChannel(targetChannel);
-      setTimeout(() => {
-        let el = targetMsgId ? document.querySelector(`[data-message-id="${targetMsgId}"]`) : null;
-        if (!el && targetMsgId) {
-          el = document.getElementById(targetMsgId);
-        }
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.remove("highlight-flash");
-          void el.offsetWidth;
-          el.classList.add("highlight-flash");
-          setTimeout(() => el.classList.remove("highlight-flash"), 2600);
-        } else {
-          scrollFeedToLatest("smooth");
-        }
-      }, 120);
-    }
+    const targetMsgId = jumpBtn.dataset.jumpMsg || "";
+    const kw = jumpBtn.dataset.jumpKw || "";
+    jumpToSourceMessage(rawTarget, targetMsgId, kw);
     return;
   }
 
@@ -1490,27 +1921,23 @@ document.addEventListener("click", (event) => {
       personaSelect.value = "teacher_hoang";
       personaSelect.dispatchEvent(new Event("change"));
       switchChannel("announcements");
-      processNewMessage("announcements", "teacher_hoang", "@everyone Chào các bạn, ngày mai chúng ta có lịch họp online lúc 20:00 để chốt tiến độ dự án AI nhé. Link meet mình sẽ gửi sau.");
+      processNewMessage("announcements", "teacher_hoang", "@everyone Chào các bạn, ngày mai chúng ta có lịch họp online lúc 20:00 để chốt tiến độ dự án AI nhé. Link Google Meet: https://meet.google.com/abc-defg-hij");
+      window.setTimeout(() => {
+        switchChannel("deadline-hub");
+      }, 500);
     } else if (quickType === "urgent-extension") {
       personaSelect.value = "teacher_hoang";
       personaSelect.dispatchEvent(new Event("change"));
       switchChannel("announcements");
-      processNewMessage("announcements", "teacher_hoang", "Thông báo khẩn cấp lớp 3A: Do sự cố quyền truy cập form nộp bài, Giảng viên gia hạn khẩn cấp thêm 2 tiếng cho Lab 2 đến 02:00 sáng mai (18/09/2026)!");
-    } else if (quickType === "new-daily-deadline") {
-      personaSelect.value = "teacher_hoang";
-      personaSelect.dispatchEvent(new Event("change"));
-      switchChannel("announcements");
-      processNewMessage("announcements", "teacher_hoang", "Thông báo bổ sung trong ngày: Mở thêm Mini Quiz 15 phút về Tokenization, hạn chót nộp trước 18:00 chiều nay 17/09/2026!");
-    } else if (quickType === "conflict-alert") {
-      personaSelect.value = "ta_tuan";
-      personaSelect.dispatchEvent(new Event("change"));
-      switchChannel("lab-assignments");
-      processNewMessage("lab-assignments", "ta_tuan", "Lưu ý Lab 2: Hạn chót là 18:00 ngày 18/09 nhé các bạn, form sẽ đóng sớm.");
-    } else if (quickType === "normal-chat") {
+      processNewMessage("announcements", "teacher_hoang", "Thông báo khẩn cấp lớp 3A: Do sự cố quyền truy cập form nộp bài, Giảng viên gia hạn khẩn cấp thêm 2 tiếng cho Lab 2 đến 02:00 sáng mai (18/09/2026)! Form nộp: https://forms.gle/lab2-submit-k4");
+      window.setTimeout(() => {
+        switchChannel("deadline-hub");
+      }, 500);
+    } else if (quickType === "student-lab-chat") {
       personaSelect.value = "student_lananh";
       personaSelect.dispatchEvent(new Event("change"));
       switchChannel("lab-assignments");
-      processNewMessage("lab-assignments", "student_lananh", "Mọi người cho mình hỏi hạn nộp Lab 2 là mấy giờ thế?");
+      processNewMessage("lab-assignments", "student_lananh", "Mọi người cho mình hỏi câu 3 bài Lab 2 chạy Few-shot có cần xuất file log riêng không?");
     }
     return;
   }
@@ -1562,18 +1989,8 @@ personaSelect.addEventListener("change", (event) => {
   document.querySelector("#profileRole").textContent = `${p.role} · Lớp 3A`;
   document.querySelector("#profileAvatar").textContent = p.avatar;
   updateComposerPlaceholder();
+  updateComposerLockState();
   showToast(`Đã chuyển vai trò sang: ${p.label}`);
-});
-
-document.querySelector("#openDataInspectorButton").addEventListener("click", openDataInspector);
-
-document.querySelector("#copyJsonBtn").addEventListener("click", () => {
-  const code = document.querySelector("#jsonViewerCode").textContent;
-  navigator.clipboard.writeText(code).then(() => {
-    showToast("Đã sao chép nội dung JSON vào Clipboard!");
-  }).catch(() => {
-    showToast("Không thể sao chép tự động, vui lòng chọn và Ctrl+C.");
-  });
 });
 
 document.querySelector("#adminForm").addEventListener("submit", (event) => {
@@ -1598,8 +2015,9 @@ document.querySelector("#adminForm").addEventListener("submit", (event) => {
     quote: "Deadline được admin nhập bằng form và chịu trách nhiệm xác nhận nguồn."
   };
   deadlines.unshift(newDl);
+  persistDeadlineToBackend(newDl);
   closeDialog(adminDialog);
-  showToast(`Admin đã thêm “${data.get("title")}” vào danh sách & lưu trữ JSON.`);
+  showToast(`Admin đã thêm “${data.get("title")}” vào danh sách theo dõi.`);
   renderChannelFeed(activeChannel);
   event.currentTarget.reset();
 });
@@ -1615,18 +2033,94 @@ document.querySelector("#correctionForm").addEventListener("submit", (event) => 
 
 document.querySelector("#openLogViewerButton")?.addEventListener("click", openLogViewer);
 
+document.querySelector("#resetDemoDataBtn")?.addEventListener("click", async () => {
+  const confirmed = confirm("🧹 Bạn có chắc muốn DỌN SẠCH toàn bộ tin nhắn thử nghiệm và khôi phục dữ liệu Demo chuẩn ban đầu?");
+  if (!confirmed) return;
+
+  showToast("⏳ Đang dọn rác và khôi phục dữ liệu chuẩn...");
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/admin/reset-demo-data`, { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      console.log("[DEMO DATA RESET SUCCESS]", data);
+    }
+  } catch (err) {
+    console.warn("Backend reset endpoint offline, resetting local state.", err);
+  }
+
+  // Khôi phục bộ nhớ cục bộ về chuẩn ban đầu
+  deadlines = JSON.parse(JSON.stringify(initialDeadlines));
+  channelMessages = JSON.parse(JSON.stringify(initialChannelMessages));
+  events = [
+    {
+      "_id": "evt_lab-2",
+      "source": { "guild_id": "123456789012345678", "channel_id": "chan_announcements", "channel_name": "announcements", "message_id": "msg_ann_01", "author": { "id": "1029384756", "name": "Thầy Hoàng" }, "created_at": "2026-09-15T14:00:00+07:00" },
+      "classification": { "type": "DEADLINE", "importance": "HIGH", "is_relevant": true, "confidence": 0.98 },
+      "content": { "title": "Lab 2 · Prompt Engineering & LLM Basics", "summary": "Gia hạn Lab 2 đến 23:59 thứ Năm, 17/09. Nộp notebook hoặc link GitHub public." },
+      "schedule": { "start_time": null, "end_time": null, "deadline": "2026-09-17T23:59:00+07:00", "time_precision": "DEADLINE_ONLY" },
+      "target": { "audience": "UNKNOWN", "course": "AI Batch 04" },
+      "system": { "status": "PROCESSED", "created_at": "2026-09-15T14:00:00+07:00", "updated_at": "2026-09-15T14:00:00+07:00", "conflict_detected": false, "conflict_note": null }
+    },
+    {
+      "_id": "evt_quiz-1",
+      "source": { "guild_id": "123456789012345678", "channel_id": "chan_quiz_updates", "channel_name": "quiz-updates", "message_id": "msg_quiz_01", "author": { "id": "1029384756", "name": "Cô Minh Anh" }, "created_at": "2026-09-14T09:00:00+07:00" },
+      "classification": { "type": "DEADLINE", "importance": "HIGH", "is_relevant": true, "confidence": 0.97 },
+      "content": { "title": "Quiz 1 · Transformer & Tokenization", "summary": "Quiz 1 đóng lúc 21:00 thứ Bảy, 19/09. Thời gian làm bài 30 phút." },
+      "schedule": { "start_time": null, "end_time": null, "deadline": "2026-09-19T21:00:00+07:00", "time_precision": "DEADLINE_ONLY" },
+      "target": { "audience": "UNKNOWN", "course": "AI Batch 04" },
+      "system": { "status": "PROCESSED", "created_at": "2026-09-14T09:00:00+07:00", "updated_at": "2026-09-14T09:00:00+07:00", "conflict_detected": false, "conflict_note": null }
+    },
+    {
+      "_id": "evt_hackathon-cp2",
+      "source": { "guild_id": "123456789012345678", "channel_id": "chan_hackathon", "channel_name": "hackathon", "message_id": "msg_hack_01", "author": { "id": "1029384756", "name": "BTC Hackathon" }, "created_at": "2026-09-16T18:00:00+07:00" },
+      "classification": { "type": "DEADLINE", "importance": "HIGH", "is_relevant": true, "confidence": 0.99 },
+      "content": { "title": "Mini Hackathon · Checkpoint 2 (Working Mock)", "summary": "Nộp link repo public, prototype và phần cập nhật spec trước 21:00 ngày 16/09." },
+      "schedule": { "start_time": null, "end_time": null, "deadline": "2026-09-16T21:00:00+07:00", "time_precision": "DEADLINE_ONLY" },
+      "target": { "audience": "UNKNOWN", "course": "AI Batch 04" },
+      "system": { "status": "PROCESSED", "created_at": "2026-09-16T18:00:00+07:00", "updated_at": "2026-09-16T18:00:00+07:00", "conflict_detected": false, "conflict_note": null }
+    }
+  ];
+
+  // Cập nhật lại giao diện
+  repostWeeklyDigestAtBottom();
+  renderChannelFeed(activeChannel);
+  unseenUpdates = 0;
+  updateDeadlineHubBadge(0);
+  showToast("✨ Đã dọn sạch toàn bộ tin nhắn test và khôi phục dữ liệu Demo chuẩn!");
+});
+
 document.querySelector("#refreshLogBtn")?.addEventListener("click", async () => {
-  const codeEl = document.querySelector("#logViewerCode");
-  if (codeEl) codeEl.textContent = "Đang làm mới logs từ logs/pipeline.log...";
-  const logText = await fetchPipelineLogs();
-  if (codeEl) codeEl.textContent = logText;
-  showToast("Đã làm mới nhật ký luồng xử lý!");
+  const container = document.querySelector("#logCardsContainer");
+  if (container) container.innerHTML = `<div class="log-empty-state">Đang làm mới logs...</div>`;
+  await fetchPipelineLogs();
+  renderParsedLogCards();
+  showToast("🔄 Đã cập nhật nhật ký mới nhất!");
+});
+
+document.querySelector("#toggleLogModeBtn")?.addEventListener("click", () => {
+  const btn = document.querySelector("#toggleLogModeBtn");
+  if (logDisplayMode === "cards") {
+    logDisplayMode = "raw";
+    if (btn) btn.textContent = "🎴 Xem Dạng Thẻ";
+  } else {
+    logDisplayMode = "cards";
+    if (btn) btn.textContent = "📄 Xem Raw Text";
+  }
+  renderParsedLogCards();
+});
+
+document.querySelector("#logStageFilters")?.addEventListener("click", (event) => {
+  const chip = event.target.closest(".log-filter-chip");
+  if (!chip) return;
+  document.querySelectorAll(".log-filter-chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  currentLogStageFilter = chip.dataset.stage || "ALL";
+  renderParsedLogCards();
 });
 
 document.querySelector("#copyLogBtn")?.addEventListener("click", () => {
-  const code = document.querySelector("#logViewerCode")?.textContent || "";
-  navigator.clipboard.writeText(code).then(() => {
-    showToast("Đã sao chép nội dung logs/pipeline.log!");
+  navigator.clipboard.writeText(rawLogsCache || "").then(() => {
+    showToast("📋 Đã sao chép toàn bộ nhật ký vào Clipboard!");
   }).catch(() => {
     showToast("Không thể sao chép tự động, vui lòng chọn và Ctrl+C.");
   });
@@ -1657,7 +2151,201 @@ if (backendPill) {
   });
 }
 
-// Initial load
+// ============================================================================
+// AUTO-REFRESH THÔNG BÁO CHUNG (DIGEST) — 1 PHÚT / LẦN (TEST MODE) + SMART POLLING
+// ============================================================================
+let unseenUpdates = 0;
+let lastEventsHash = "";
+
+function updateDeadlineHubBadge(count) {
+  const hubBtn = document.querySelector('[data-channel="deadline-hub"]');
+  if (!hubBtn) return;
+  let badge = hubBtn.querySelector('.unread-badge');
+  if (count <= 0) {
+    if (badge) badge.remove();
+    return;
+  }
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'unread-badge';
+    badge.style.cssText = "background:#f23f43;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:auto;display:inline-block;";
+    hubBtn.appendChild(badge);
+  }
+  badge.textContent = count > 9 ? '9+' : count;
+}
+
+const DIGEST_REFRESH_INTERVAL_MS = 60 * 1000; // 1 phút / lần (Chế độ kiểm thử - Test Mode)
+let digestRefreshTimer = null;
+
+async function fetchAndSyncDigestFromBackend() {
+  try {
+    const [eventsRes, digestRes] = await Promise.allSettled([
+      fetch(`${BACKEND_API_URL}/events?limit=50`),
+      fetch(`${BACKEND_API_URL}/schedule/digest`)
+    ]);
+
+    let hasChanges = false;
+    if (eventsRes.status === "fulfilled" && eventsRes.value.ok) {
+      const backendEvents = await eventsRes.value.json();
+      const currentHash = JSON.stringify(backendEvents.map(e => e._id + "_" + (e.system?.updated_at || "")).sort());
+      if (lastEventsHash && currentHash !== lastEventsHash) {
+        hasChanges = true;
+      }
+      lastEventsHash = currentHash;
+
+    // Đồng bộ vào mảng deadlines frontend nếu có bài tập mới hoặc cập nhật gia hạn / lịch họp
+      for (const evt of backendEvents) {
+        if (evt.system?.status === "SUPERSEDED" || evt.system?.status === "CANCELLED") continue;
+        const topic = evt.system?.topic_key || evt._id;
+        const iso = evt.schedule?.deadline || evt.schedule?.start_time;
+        const isMeeting = evt.classification?.type === "MEETING";
+        const isDeadline = evt.classification?.type === "DEADLINE";
+        if (topic && iso && (isDeadline || isMeeting)) {
+          const existing = deadlines.find(d => d.assignment_code === topic || d.id === topic || (evt.content?.title && d.title === evt.content.title));
+          if (!existing) {
+            deadlines.push({
+              id: topic,
+              assignment_code: topic,
+              title: evt.content?.title || (isMeeting ? "Lịch họp mới" : "Deadline mới"),
+              type: isMeeting ? "MEETING" : "DEADLINE",
+              due_date: iso.slice(0, 10),
+              due_time: iso.slice(11, 16),
+              time: `${iso.slice(11, 16)} (${iso.slice(0, 10)})`,
+              iso_deadline: iso,
+              submission_link: evt.content?.meet_link || "https://forms.gle/vlearn-submit",
+              meetLink: evt.content?.meet_link,
+              format: isMeeting ? "Google Meet trực tuyến" : "Nộp bài trực tuyến",
+              source_channel: `#${evt.source?.channel_name || "announcements"}`,
+              source: `#${evt.source?.channel_name || "announcements"}`,
+              sourceLabel: `${evt.source?.author?.name || "Giảng viên"}`,
+              source_message_id: evt.source?.message_id || "",
+              status: "ACTIVE",
+              is_important: evt.classification?.importance === "HIGH",
+              confidence: Math.round((evt.classification?.confidence || 0.95) * 100),
+              quote: evt.content?.summary || "",
+              author_name: evt.source?.author?.name || "Giảng viên",
+              author_role: "Giảng viên"
+            });
+            hasChanges = true;
+          } else if (existing.iso_deadline !== iso) {
+            existing.iso_deadline = iso;
+            existing.due_date = iso.slice(0, 10);
+            existing.due_time = iso.slice(11, 16);
+            existing.time = `${iso.slice(11, 16)} (${iso.slice(0, 10)})`;
+            existing.quote = evt.content?.summary || existing.quote;
+            if (isMeeting) {
+              if (evt.content?.meet_link) existing.meetLink = evt.content?.meet_link;
+            } else {
+              existing.is_extension = true;
+            }
+            hasChanges = true;
+          }
+        }
+      }
+    }
+    return hasChanges;
+  } catch (e) {
+    console.log("[SmartRefresh] Backend offline, skipping sync.");
+    return false;
+  }
+}
+
+async function hydrateAppDataFromBackend() {
+  try {
+    const isOnline = await checkBackendStatus();
+    if (!isOnline) {
+      console.log("[Hydrate] Backend offline, sử dụng dữ liệu mặc định.");
+      repostWeeklyDigestAtBottom();
+      renderChannelFeed(activeChannel);
+      return;
+    }
+
+    const [channelsRes, deadlinesRes, eventsRes] = await Promise.allSettled([
+      fetch(`${BACKEND_API_URL}/channels`),
+      fetch(`${BACKEND_API_URL}/deadlines`),
+      fetch(`${BACKEND_API_URL}/events?limit=100`)
+    ]);
+
+    let hasData = false;
+
+    // 1. Đồng bộ tin nhắn từng channel từ file data/channels/*.json
+    if (channelsRes.status === "fulfilled" && channelsRes.value.ok) {
+      const allChannels = await channelsRes.value.json();
+      if (allChannels && typeof allChannels === "object") {
+        Object.keys(allChannels).forEach(ch => {
+          if (Array.isArray(allChannels[ch]) && allChannels[ch].length > 0) {
+            channelMessages[ch] = allChannels[ch];
+            hasData = true;
+          }
+        });
+        if (channelMessages["deadline-hub"]) {
+          channelMessages["deadline-hub-bulletin"] = channelMessages["deadline-hub"];
+        }
+      }
+    }
+
+    // 2. Đồng bộ danh sách deadline từ data/deadlines.json
+    if (deadlinesRes.status === "fulfilled" && deadlinesRes.value.ok) {
+      const storedDeadlines = await deadlinesRes.value.json();
+      if (Array.isArray(storedDeadlines) && storedDeadlines.length > 0) {
+        deadlines = storedDeadlines;
+        hasData = true;
+      }
+    }
+
+    // 3. Đồng bộ danh sách events từ data/events.json
+    if (eventsRes.status === "fulfilled" && eventsRes.value.ok) {
+      const storedEvents = await eventsRes.value.json();
+      if (Array.isArray(storedEvents) && storedEvents.length > 0) {
+        events = storedEvents;
+      }
+    }
+
+    // 4. Luôn đảm bảo Bảng tin tuần ở đáy và cập nhật giao diện
+    repostWeeklyDigestAtBottom();
+    renderChannelFeed(activeChannel);
+    if (hasData) {
+      console.log("[Hydrate] Đã tải toàn bộ tin nhắn & hạn chót từ database backend thành công!");
+    }
+  } catch (err) {
+    console.warn("[Hydrate] Lỗi đồng bộ backend:", err);
+    repostWeeklyDigestAtBottom();
+    renderChannelFeed(activeChannel);
+  }
+}
+
+function startDigestAutoRefresh() {
+  if (digestRefreshTimer) clearInterval(digestRefreshTimer);
+
+  digestRefreshTimer = setInterval(async () => {
+    console.log(`[DigestAutoRefresh] Đồng bộ định kỳ Bảng Tin — ${new Date().toLocaleTimeString("vi-VN")}`);
+    const hasChanges = await fetchAndSyncDigestFromBackend();
+
+    if (hasChanges) {
+      repostWeeklyDigestAtBottom();
+      if (activeChannel === "deadline-hub") {
+        renderChannelFeed("deadline-hub");
+        scrollFeedToLatest("smooth");
+        showToast("🔄 Bảng tin 7 ngày đã tự động cập nhật dữ liệu mới xuống đáy kênh!");
+      } else {
+        unseenUpdates++;
+        updateDeadlineHubBadge(unseenUpdates);
+        showToast(`📢 Bảng tin tuần có thông báo mới (Đồng bộ định kỳ)!`);
+      }
+    } else {
+      if (activeChannel === "deadline-hub") {
+        renderChannelFeed("deadline-hub");
+      }
+    }
+  }, DIGEST_REFRESH_INTERVAL_MS);
+
+  console.log(`[DigestAutoRefresh] Đã bật đồng bộ định kỳ mỗi ${DIGEST_REFRESH_INTERVAL_MS / 1000} giây (Chế độ kiểm thử).`);
+}
+
+// Initial load: Render placeholder -> Hydrate from persistent backend -> start timers
 switchChannel("deadline-hub");
 updatePipelineTrace(pipelineScenarios.urgent);
-checkBackendStatus();
+hydrateAppDataFromBackend().then(() => {
+  startDigestAutoRefresh();
+});
+

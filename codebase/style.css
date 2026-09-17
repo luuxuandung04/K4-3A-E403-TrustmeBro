@@ -550,6 +550,21 @@ a:hover {
   color: #ffffff;
 }
 
+.reset-btn {
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+  cursor: pointer;
+}
+.reset-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
 .json-inspect-btn {
   padding: 5px 10px;
   font-size: 11px;
@@ -668,6 +683,7 @@ a:hover {
   background: #4e5058;
   color: #ffffff;
 }
+
 
 /* Chat Feed Wrapper */
 .discord-feed-wrap {
@@ -1396,6 +1412,33 @@ a:hover {
   color: var(--text-normal);
 }
 
+/* Discord Composer: Locked / Read-Only State for Students */
+.discord-composer.locked {
+  background: #202225;
+  border: 1px dashed rgba(239, 68, 68, 0.35);
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+.discord-composer.locked input {
+  cursor: not-allowed;
+  color: #80848e;
+  pointer-events: none;
+  font-style: italic;
+}
+.discord-composer.locked .composer-plus,
+.discord-composer.locked .composer-tools {
+  opacity: 0.25;
+  pointer-events: none;
+}
+.discord-composer.locked .send-command {
+  background: #383a40;
+  color: #80848e;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+
+
 /* ==========================================================================
    COLUMN 4: MEMBERS SIDEBAR (FAR RIGHT)
    ========================================================================== */
@@ -1720,69 +1763,161 @@ a:hover {
   margin-top: 16px;
 }
 
-/* Data & Log Inspector Modal */
-.json-tabs {
+/* Log Filter & View Toggle Bar */
+.log-filter-bar {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 8px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border-input);
+  margin-bottom: 8px;
 }
-.json-tab-btn {
-  padding: 6px 10px;
-  font-family: "JetBrains Mono", Consolas, monospace;
+.log-stage-filters {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 2px 0;
+}
+.log-filter-chip {
+  padding: 5px 10px;
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
-  background: #383a40;
-  border: 0;
+  background: #2b2d31;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
+  transition: all 120ms ease;
 }
-.json-tab-btn:hover {
-  background: #4e5058;
-  color: white;
+.log-filter-chip:hover {
+  background: #383a40;
+  color: #dbdee1;
 }
-.json-tab-btn.active {
+.log-filter-chip.active {
   background: var(--blurple);
-  color: white;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
-.json-viewer-box {
+.log-view-toggle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.log-viewer-box {
   display: flex;
   flex-direction: column;
   flex: 1;
-  margin-top: 10px;
   background: #111214;
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid #1f2023;
+  min-height: 380px;
+  max-height: 480px;
 }
-.json-viewer-header {
+
+/* Visual Log Cards */
+.log-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  max-height: 480px;
+}
+.log-card-item {
+  background: #1e1f22;
+  border: 1px solid #2b2d31;
+  border-left: 4px solid var(--blurple);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 120ms ease;
+}
+.log-card-item:hover {
+  background: #232428;
+}
+.log-card-warn {
+  border-left-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.05);
+}
+.log-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 14px;
-  background: #1e1f22;
-  color: var(--text-muted);
+}
+.log-stage-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.log-time-badge {
   font-size: 11px;
   font-family: monospace;
+  color: var(--text-muted);
+}
+.log-card-msg {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1.4;
+}
+.log-meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+.log-meta-chip {
+  font-size: 10.5px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  color: #94a3b8;
+}
+.log-meta-chip strong {
+  color: #cbd5e1;
+}
+.log-card-raw {
+  font-family: monospace;
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 6px;
   border-bottom: 1px solid #2b2d31;
 }
+.log-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .copy-json-button {
-  padding: 4px 10px;
-  font-size: 10px;
+  padding: 5px 10px;
+  font-size: 11px;
   font-weight: 700;
   color: white;
-  background: #4e5058;
+  background: #383a40;
   border: 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: background 120ms ease;
 }
 .copy-json-button:hover {
   background: var(--blurple);
 }
-.json-code-block, .log-code-block {
+.log-code-block {
   margin: 0;
   padding: 14px;
   color: #86efac;
@@ -1791,14 +1926,14 @@ a:hover {
   font-size: 11.5px;
   line-height: 1.55;
   overflow: auto;
-  max-height: 420px;
+  max-height: 480px;
   white-space: pre;
 }
-.log-code-block::-webkit-scrollbar, .json-code-block::-webkit-scrollbar {
+.log-code-block::-webkit-scrollbar, .log-cards-list::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-.log-code-block::-webkit-scrollbar-thumb, .json-code-block::-webkit-scrollbar-thumb {
+.log-code-block::-webkit-scrollbar-thumb, .log-cards-list::-webkit-scrollbar-thumb {
   background: #2b2d31;
   border-radius: 3px;
 }

@@ -24,10 +24,10 @@
         <header class="workspace-heading"><div><span>AI BATCH 04</span><strong>Phòng E403 · Lớp 3A</strong></div><span aria-hidden="true">⌄</span></header>
         <nav class="channel-list" aria-label="Các kênh lớp học">
           <p>TRUNG TÂM LỚP (TỰ ĐỘNG)</p>
-          <button class="channel active" type="button" data-channel="deadline-hub" aria-current="page"><span>#</span><strong>deadline-hub</strong><em id="badge-deadline-hub">AUTO</em></button>
+          <button class="channel active" type="button" data-channel="deadline-hub" aria-current="page"><span>📋</span><strong>deadline-hub</strong><em id="badge-deadline-hub">FORUM</em></button>
           <button class="channel" type="button" data-channel="announcements"><span>#</span><strong>announcements</strong><em id="badge-announcements" class="channel-badge-important">MỚI</em></button>
           <button class="channel" type="button" data-channel="lich-hoc"><span>#</span><strong>lich-hoc</strong></button>
-          <p>NGUỒN DEADLINE & THẢO LUẬN</p>
+          <p>NGUỒN DEADLINE & THẢO LUẬN (SV & TA)</p>
           <button class="channel" type="button" data-channel="lab-assignments"><span>#</span><strong>lab-assignments</strong></button>
           <button class="channel" type="button" data-channel="quiz-updates"><span>#</span><strong>quiz-updates</strong></button>
           <button class="channel" type="button" data-channel="hackathon"><span>#</span><strong>hackathon</strong></button>
@@ -51,9 +51,9 @@
       <main id="mainContent" class="main-panel discord-main">
         <header class="topbar">
           <div class="topbar-left">
-            <div class="channel-name"><span>#</span> <strong id="activeChannelTitle">deadline-hub</strong></div>
+            <div class="channel-name"><span>📋</span> <strong id="activeChannelTitle">deadline-hub</strong></div>
             <span class="topbar-divider"></span>
-            <p id="activeChannelDesc">Tự động tổng hợp hạn nộp 7 ngày tới · Chỉ phát tin mới khi có biến động khẩn cấp</p>
+            <p id="activeChannelDesc">Bảng tin tổng hợp deadline & lịch học tự động đồng bộ từ Discord</p>
           </div>
           <div class="topbar-actions">
             <div class="persona-switcher" title="Chuyển đổi vai trò để gửi tin nhắn thử nghiệm">
@@ -66,20 +66,18 @@
               </select>
             </div>
             <button id="openLogViewerButton" class="compact-button log-btn" type="button" title="Xem nhật ký luồng xử lý logs/pipeline.log">📜 Pipeline Log</button>
-            <button id="openDataInspectorButton" class="compact-button json-inspect-btn" type="button" title="Xem dữ liệu JSON thời gian thực">📂 Dữ liệu JSON</button>
+            <button id="resetDemoDataBtn" class="compact-button reset-btn" type="button" title="Dọn sạch tin nhắn test và khôi phục dữ liệu ban đầu để demo">🧹 Dọn rác / Reset Demo</button>
             <span id="backendStatusPill" class="prototype-pill" title="Trạng thái kết nối FastAPI Backend AI Pipeline"><i></i> FASTAPI: ĐANG KẾT NỐI...</span>
             <button id="toggleMembersBtn" class="icon-button" type="button" title="Ẩn/Hiện danh sách thành viên lớp" aria-label="Danh sách thành viên">👥</button>
           </div>
         </header>
 
-        <!-- Quick Demo bar updated with the exact user scenarios -->
+        <!-- Quick Demo bar updated with notification scenarios -->
         <section class="quick-demo-bar" aria-label="Kịch bản thử nghiệm nhanh">
           <span class="quick-label">⚡ THỬ NHANH:</span>
-          <button type="button" class="quick-chip success" data-quick="meeting-event">🤝 Lịch họp khẩn</button>
-          <button type="button" class="quick-chip danger" data-quick="urgent-extension">🚨 Gia hạn sát giờ</button>
-          <button type="button" class="quick-chip primary" data-quick="new-daily-deadline">⚡ Mini Quiz mới</button>
-          <button type="button" class="quick-chip warning" data-quick="conflict-alert">⚠️ Báo xung đột</button>
-          <button type="button" class="quick-chip idle" data-quick="normal-chat">💬 Hỏi bài tại kênh</button>
+          <button type="button" class="quick-chip success" data-quick="meeting-event">🤝 Lịch họp khẩn (GV)</button>
+          <button type="button" class="quick-chip danger" data-quick="urgent-extension">🚨 Gia hạn Lab 2 (GV)</button>
+          <button type="button" class="quick-chip idle" data-quick="student-lab-chat">👥 Thảo luận Lab (Bot im lặng)</button>
         </section>
 
         <section class="discord-feed-wrap">
@@ -181,55 +179,42 @@
       </div>
     </dialog>
 
-    <!-- Modal Data Inspector xem trực tiếp các file JSON -->
-    <dialog id="dataDialog" class="modal json-modal">
-      <div class="modal-card">
-        <div class="modal-header">
-          <div><span class="eyebrow">DATA INSPECTOR (THƯ MỤC DATA/)</span><h2>Dữ liệu JSON thời gian thực</h2></div>
-          <button class="close-button" type="button" data-close="dataDialog" aria-label="Đóng">×</button>
-        </div>
-        <p class="modal-copy">Các file JSON lưu trữ chat log từng kênh và dữ liệu deadline đã được LLM parse và chuẩn hóa.</p>
-        <div class="json-tabs" id="jsonTabs">
-          <button class="json-tab-btn active" data-json="events">events.json (Doc Schema)</button>
-          <button class="json-tab-btn" data-json="deadlines">deadlines.json</button>
-          <button class="json-tab-btn" data-json="announcements">announcements.json</button>
-          <button class="json-tab-btn" data-json="deadline-hub">deadline-hub.json</button>
-          <button class="json-tab-btn" data-json="lab-assignments">lab-assignments.json</button>
-          <button class="json-tab-btn" data-json="quiz-updates">quiz-updates.json</button>
-          <button class="json-tab-btn" data-json="hackathon">hackathon.json</button>
-          <button class="json-tab-btn" data-json="pipeline_log">pipeline.log (Audit Log)</button>
-        </div>
-        <div class="json-viewer-box">
-          <div class="json-viewer-header">
-            <span id="jsonViewerPath">data/deadlines.json</span>
-            <button type="button" id="copyJsonBtn" class="copy-json-button">📋 Sao chép</button>
-          </div>
-          <pre id="jsonViewerCode" class="json-code-block"></pre>
-        </div>
-        <div class="modal-actions">
-          <button class="secondary-button" type="button" data-close="dataDialog">Đóng</button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- Modal Pipeline Log Viewer (Theo dõi trực tiếp luồng xử lý) -->
+    <!-- Modal Pipeline Log Viewer (Theo dõi trực tiếp luồng xử lý thông minh) -->
     <dialog id="logDialog" class="modal json-modal log-dialog-modal">
       <div class="modal-card">
         <div class="modal-header">
-          <div><span class="eyebrow">PIPELINE AUDIT LOG · LOGS/PIPELINE.LOG</span><h2>Nhật ký Luồng Xử Lý Thời Gian Thực</h2></div>
+          <div><span class="eyebrow">PIPELINE AUDIT TRAIL · LOGS/PIPELINE.LOG</span><h2>Nhật Ký Luồng Xử Lý Sự Kiện</h2></div>
           <button class="close-button" type="button" data-close="logDialog" aria-label="Đóng">×</button>
         </div>
-        <p class="modal-copy">Theo dõi thời gian thực 6 công đoạn: <code>[DISCORD_EVENT]</code> → <code>[CANDIDATE_GATE]</code> → <code>[AI_EXTRACTOR]</code> → <code>[VALIDATOR]</code> → <code>[JSON_STORE]</code> → <code>[DISCORD_FORMAT]</code>.</p>
-        <div class="json-viewer-box">
-          <div class="json-viewer-header">
-            <span id="logViewerPath">logs/pipeline.log</span>
-            <div style="display:flex;gap:8px;">
-              <button type="button" id="refreshLogBtn" class="copy-json-button">🔄 Làm mới</button>
-              <button type="button" id="copyLogBtn" class="copy-json-button">📋 Sao chép Logs</button>
-            </div>
+        <p class="modal-copy">Theo dõi hành trình xử lý tin nhắn qua 6 công đoạn: <code>Nhận tin</code> → <code>Lọc Gate</code> → <code>AI Trích xuất</code> → <code>Xác thực & Xung đột</code> → <code>Lưu trữ Kho</code> → <code>Đồng bộ Discord</code>.</p>
+        
+        <!-- Filter bar by Stage -->
+        <div class="log-filter-bar">
+          <div class="log-stage-filters" id="logStageFilters">
+            <button type="button" class="log-filter-chip active" data-stage="ALL">Tất cả</button>
+            <button type="button" class="log-filter-chip" data-stage="DISCORD_EVENT">📩 Sự Kiện</button>
+            <button type="button" class="log-filter-chip" data-stage="CANDIDATE_GATE">🚪 Bộ Lọc Gate</button>
+            <button type="button" class="log-filter-chip" data-stage="AI_EXTRACTOR">🤖 AI Gemini</button>
+            <button type="button" class="log-filter-chip" data-stage="VALIDATOR">⚖️ Xác Thực</button>
+            <button type="button" class="log-filter-chip" data-stage="JSON_STORE">💾 Lưu Kho</button>
+            <button type="button" class="log-filter-chip" data-stage="DISCORD_FORMAT">📢 Định Dạng</button>
           </div>
-          <pre id="logViewerCode" class="json-code-block log-code-block">Đang tải nhật ký luồng xử lý...</pre>
+          <div class="log-view-toggle">
+            <button type="button" id="toggleLogModeBtn" class="copy-json-button" data-mode="cards">📄 Xem Raw Text</button>
+            <button type="button" id="refreshLogBtn" class="copy-json-button">🔄 Làm mới</button>
+            <button type="button" id="copyLogBtn" class="copy-json-button">📋 Sao chép</button>
+          </div>
         </div>
+
+        <div class="json-viewer-box log-viewer-box">
+          <!-- Visual Cards Container -->
+          <div id="logCardsContainer" class="log-cards-list">
+            <div class="log-empty-state">Đang tải nhật ký luồng xử lý...</div>
+          </div>
+          <!-- Raw Text Block (Ẩn mặc định) -->
+          <pre id="logViewerCode" class="json-code-block log-code-block" style="display:none;">Đang tải nhật ký luồng xử lý...</pre>
+        </div>
+
         <div class="modal-actions">
           <button class="secondary-button" type="button" data-close="logDialog">Đóng</button>
         </div>
