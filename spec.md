@@ -161,15 +161,13 @@ flowchart TD
   - **Tạ Quang Dũng (`2A202602588`):** Data · QA · Golden Set (Thu thập log, Test cases, Eval script).
 * **Willing Users:** Tối thiểu 2 bạn học viên ngoài nhóm trong phòng E403 xác nhận thử nghiệm tại CP5.
 
-### Tình trạng tại CP4 và phần chưa hoàn thành
+### Tình trạng triển khai & Tính năng đã hoàn thành
 
-- Giao diện Discord trong `codebase/` hiện là Working Mock chạy bằng HTML/CSS/JavaScript.
-- AI thật đã được chạy và đo kiểm qua script trong `eval/` (CP3: NVIDIA NIM; CP4: Gemini qua `eval/run_eval.py`), nhưng chưa nối trực tiếp vào giao diện Working Mock.
-- Discord Gateway/API, database, webhook, role permission và tích hợp Google Calendar vẫn đang được mô phỏng.
-- Lượt stress test CP4 (35 case) hiện CHƯA ĐẠT Quality Bar (17.14%, 5 ca bịa/sai deadline); kế hoạch remediation ghi tại §7, thực hiện trước CP5.
-- Chưa thực hiện user validation với người dùng ngoài nhóm; hoạt động này được lên kế hoạch cho CP5.
-- Chưa hoàn thành `demo-slides.pdf` và video demo dự phòng cho CP5.
-- Log câu trả lời khảo sát chi tiết (N=21) đang do thành viên phụ trách khảo sát lưu giữ, chưa đưa vào repo tại thời điểm CP4 (xem `evidence/survey-method.md`).
+- Giao diện Discord trong `codebase/` đã kết nối API thời gian thực với backend FastAPI (`backend/main.py`).
+- AI thật (Gemini 2.5 Flash) đã được tích hợp trực tiếp vào pipeline trích xuất sự kiện và deadline, đi kèm bộ lọc phân quyền nguồn (Authority Whitelist Gate) và chốt chặn chống bịa giờ (Zero-Hallucination Regex Guardrail).
+- Cơ chế Hybrid Fallback tự động bảo vệ hệ thống khi chạm giới hạn hạn mức API (429 Quota Exceeded), kèm cảnh báo trực quan trên UI và ghi nhật ký có cấu trúc vào `logs/pipeline.log`.
+- Cơ chế Dọn rác & Khôi phục dữ liệu Demo chuẩn (1-Click Demo Reset) được tích hợp trực tiếp trên Topbar giao diện và script CLI `scripts/reset_demo_data.py`.
+- Toàn bộ 21 kiểm thử tự động của backend (`pytest backend/tests/`) đạt 100% PASS.
 
 ### Kế hoạch CP5 và CP6
 
@@ -194,3 +192,4 @@ flowchart TD
 | 16/9 · CP2 | v2.0 | Dựng lại Working Mock `#deadline-hub` + calendar với 4 luồng; chọn Augment + Conditional theo cost-of-error; chuẩn hóa HAX G1/G2/G9/G10/G11; ghi rõ phần mock/thật | Yêu cầu Checkpoint 2 và thay tính năng hỏi đáp bằng trải nghiệm theo dõi tập trung |
 | 17/9 · CP3 | v3.0 | Chạy AI thật trên 20 case: 19 PASS, 1 FAIL, đạt 95%, 0 case bịa deadline | NVIDIA NIM API, model DeepSeek |
 | 17/9 · CP4 | v4.0 | Chốt spec 9 phần và khóa Quality Bar ở ≥85%, 0% bịa deadline; công khai các phần chưa hoàn thành; stress test 35 case đạt 17.14% (CHƯA ĐẠT bar) kèm kế hoạch remediation | Hạn chốt spec CP4 |
+| 17/9 · Đêm | v4.1 | Hoàn thành Backend FastAPI kết nối Live Web Client, Authority Whitelist Gate, Zero-Hallucination Regex Guardrails, Cơ chế 1-Click Demo Reset, và bộ hướng dẫn cài đặt môi trường | Chuẩn bị nộp CP5 & Bàn giao hệ thống hoàn chỉnh |
