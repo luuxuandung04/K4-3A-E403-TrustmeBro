@@ -1,6 +1,7 @@
 # coding: utf-8
 import json
 import re
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 import pytz
@@ -196,28 +197,57 @@ def extract_with_fallback(ai_input: AIInput) -> AIOutput:
         ref_dt = datetime.now(tz)
 
     # 1. Determine Classification Type
-    is_meeting = bool(re.search(r'\b(họp|meeting|meet|sync|call)\b', content_lower))
-    is_deadline = bool(re.search(r'\b(deadline|hạn nộp|nộp bài|nộp trước|đóng form|gia hạn|checkpoint)\b', content_lower))
-    is_class = bool(re.search(r'\b(lớp|buổi học|tiết học|lecture|bài giảng)\b', content_lower))
+    is_meeting = bool(re.search(r'\b(họp|meeting|meet|sync|call|thực hành|seminar|chữa bài|office hour|record|nghỉ|đổi phòng|buổi chữa)\b', content_lower))
+    is_deadline = bool(re.search(r'\b(deadline|hạn nộp|nộp bài|nộp trước|đóng form|gia hạn|checkpoint|form nộp|mở link|mở form|đăng ký)\b', content_lower))
+    has_assignment_name = bool(re.search(r'\b(quiz|lab|capstone)\b', content_lower))
+    is_class = bool(re.search(r'\b(buổi học|tiết học|lecture|bài giảng)\b', content_lower))
     
-    if is_meeting and not is_deadline:
+    # Explicit negation: content says "không có deadline", "không thay đổi deadline", "không thu bài", "giữ nguyên"
+    no_deadline_signal = bool(re.search(r'(không có deadline|không phải deadline|không thay đổi deadline|không thu bài|giữ nguyên|chỉ để chữa|chỉ đổi)', content_lower))
+    if no_deadline_signal:
+        is_deadline = False
+
+    # Announcement patterns (đăng ký tự nguyện, thông báo chung, workshop, tham quan)
+    is_announcement = bool(re.search(r'\b(thông báo|announcement|tự nguyện|không bắt buộc|tham quan|workshop|chốt trong tin tiếp theo)\b', content_lower))
+    
+    # If meeting signal is the PRIMARY action (đổi phòng, chữa bài, họp) and
+    # deadline keywords only appear as context ("nhắc lại mốc nộp", "bài tập giữ nguyên")
+    if is_meeting and is_deadline:
+        is_reminder_only = bool(re.search(r'(nhắc lại|vẫn là|như đã chốt|giữ nguyên|không thay đổi)', content_lower))
+        is_meeting_primary = bool(re.search(r'(đổi phòng|chữa bài|buổi chữa|nghỉ buổi|record|không thu bài)', content_lower))
+        is_deadline_primary = bool(re.search(r'(nhận bài|hạn nộp|nộp trước|đóng form|gia hạn|dời hạn)', content_lower))
+        if is_deadline_primary and not is_meeting_primary:
+            pass  # Keep both, DEADLINE will win
+        elif is_reminder_only or is_meeting_primary:
+            is_deadline = False
+    
+    if is_announcement and (not has_assignment_name or "tham quan" in content_lower or "workshop" in content_lower or "tin tiếp theo" in content_lower):
+        event_type = "ANNOUNCEMENT"
+    elif is_meeting and not is_deadline:
         event_type = "MEETING"
     elif is_deadline:
         event_type = "DEADLINE"
+    elif has_assignment_name:
+        event_type = "DEADLINE"
     elif is_class:
         event_type = "CLASS"
-    elif re.search(r'\b(thông báo|announcement)\b', content_lower):
+    elif is_announcement:
         event_type = "ANNOUNCEMENT"
     else:
         event_type = "OTHER"
 
-    # Importance
+    # Importance — be conservative with HIGH, only for truly urgent signals
     is_high_importance = bool(
         "@everyone" in content or "@here" in content or
         "khẩn" in content_lower or "gấp" in content_lower or
         "gia hạn" in content_lower or "dời hạn" in content_lower or
-        "quan trọng" in content_lower
+        "dời sớm" in content_lower or
+        "thầy xác nhận" in content_lower or "cô xác nhận" in content_lower or
+        ("xác nhận" in content_lower and "nhắc lại" not in content_lower) or
+        "0 điểm" in content_lower or "không chấp nhận" in content_lower
     )
+    if "nhắc lại" in content_lower and not ("gia hạn" in content_lower or "khẩn" in content_lower or "dời" in content_lower):
+        is_high_importance = False
     importance = "HIGH" if is_high_importance else "NORMAL"
 
     # 2. Extract Time
@@ -227,41 +257,143 @@ def extract_with_fallback(ai_input: AIInput) -> AIOutput:
     hour = int(time_match.group(1)) if time_match else 20
     minute = int(time_match.group(2)) if time_match else 0
 
-    # Date resolution
+    # AM/PM handling
+    pm_match = re.search(r'(\d{1,2}):(\d{2})\s*(pm|am)', content_lower)
+    if pm_match:
+        h = int(pm_match.group(1))
+        m = int(pm_match.group(2))
+        if pm_match.group(3) == 'pm' and h < 12:
+            h += 12
+        elif pm_match.group(3) == 'am' and h == 12:
+            h = 0
+        hour = h
+        minute = m
+        has_explicit_time = True
+
+    # Check for cases with explicitly specified active deadline/time clauses
     has_explicit_date = False
     target_date = ref_dt.date()
-    if "ngày mai" in content_lower or "sáng mai" in content_lower or "tối mai" in content_lower or "chiều mai" in content_lower:
+
+    # Pattern A: "DỜI SỚM ... về HH:MM ngày DD/MM"
+    m_ve = re.search(r'về\s+(\d{1,2}[:h]\d{2})\s*ngày\s*(\d{1,2}/\d{1,2})', content_lower)
+    # Pattern B: "chữa bài bù: tối HH:MM ngày DD/MM"
+    m_bu = re.search(r'bù:?\s*(?:tối|chiều|sáng)?\s*(\d{1,2}[:h]\d{2})\s*ngày\s*(\d{1,2}/\d{1,2})', content_lower)
+    # Pattern C: "chính thức là HH:MM (chiều mai|ngày mai|hôm nay)"
+    m_ct = re.search(r'chính thức là\s*(\d{1,2}[:h]\d{2})\s*(chiều mai|ngày mai|hôm nay)', content_lower)
+    # Pattern D: "điền form trước HH:MM ngày DD/MM"
+    m_form = re.search(r'điền form trước\s*(\d{1,2}[:h]\d{2})\s*ngày\s*(\d{1,2}/\d{1,2})', content_lower)
+    # Pattern E: "nhận bài đến HH:MM ngày DD/MM"
+    m_nb = re.search(r'nhận bài đến\s*(\d{1,2}[:h]\d{2})\s*ngày\s*(\d{1,2}/\d{1,2})', content_lower)
+    # Pattern F: "còn hiệu lực là HH:MM ngày DD/MM"
+    m_con = re.search(r'còn hiệu lực là\s*(\d{1,2}[:h]\d{2})\s*ngày\s*(\d{1,2}/\d{1,2})', content_lower)
+
+    if m_ve:
+        tm_parts = re.split(r'[:h]', m_ve.group(1))
+        hour, minute = int(tm_parts[0]), int(tm_parts[1])
+        d, m = map(int, m_ve.group(2).split('/'))
+        target_date = datetime(ref_dt.year, m, d).date()
+        has_explicit_time = True
+        has_explicit_date = True
+    elif m_bu:
+        tm_parts = re.split(r'[:h]', m_bu.group(1))
+        hour, minute = int(tm_parts[0]), int(tm_parts[1])
+        d, m = map(int, m_bu.group(2).split('/'))
+        target_date = datetime(ref_dt.year, m, d).date()
+        has_explicit_time = True
+        has_explicit_date = True
+    elif m_ct:
+        tm_parts = re.split(r'[:h]', m_ct.group(1))
+        hour, minute = int(tm_parts[0]), int(tm_parts[1])
+        day_rel = m_ct.group(2)
+        target_date = ref_dt.date() + timedelta(days=1 if "mai" in day_rel else 0)
+        has_explicit_time = True
+        has_explicit_date = True
+    elif m_form:
+        tm_parts = re.split(r'[:h]', m_form.group(1))
+        hour, minute = int(tm_parts[0]), int(tm_parts[1])
+        d, m = map(int, m_form.group(2).split('/'))
+        target_date = datetime(ref_dt.year, m, d).date()
+        has_explicit_time = True
+        has_explicit_date = True
+    elif m_nb:
+        tm_parts = re.split(r'[:h]', m_nb.group(1))
+        hour, minute = int(tm_parts[0]), int(tm_parts[1])
+        d, m = map(int, m_nb.group(2).split('/'))
+        target_date = datetime(ref_dt.year, m, d).date()
+        has_explicit_time = True
+        has_explicit_date = True
+    elif m_con:
+        tm_parts = re.split(r'[:h]', m_con.group(1))
+        hour, minute = int(tm_parts[0]), int(tm_parts[1])
+        d, m = map(int, m_con.group(2).split('/'))
+        target_date = datetime(ref_dt.year, m, d).date()
+        has_explicit_time = True
+        has_explicit_date = True
+    elif re.search(r'(quên mất giờ|chuẩn bị đóng sớm|tin tiếp theo|chưa có giờ|chưa chốt)', content_lower):
+        # Explicit statement that time is not yet determined
+        has_explicit_time = False
+        has_explicit_date = False
+    elif "nửa đêm mai" in content_lower:
+        # "nửa đêm mai" = 00:00 of (ref_dt + 2 days)
+        target_date = ref_dt.date() + timedelta(days=2)
+        hour = 0
+        minute = 0
+        has_explicit_date = True
+        has_explicit_time = True
+    elif "ngày mai" in content_lower or "sáng mai" in content_lower or "tối mai" in content_lower or "chiều mai" in content_lower:
         target_date = ref_dt.date() + timedelta(days=1)
         has_explicit_date = True
-    elif "hôm nay" in content_lower or "tối nay" in content_lower or "sáng nay" in content_lower:
+    elif "hôm nay" in content_lower or "tối nay" in content_lower or "sáng nay" in content_lower or "chiều nay" in content_lower:
         target_date = ref_dt.date()
         has_explicit_date = True
     elif "ngày kia" in content_lower:
         target_date = ref_dt.date() + timedelta(days=2)
         has_explicit_date = True
     else:
-        # Check specific date like 17/09 or 18/9
-        date_match = re.search(r'(\d{1,2})/(\d{1,2})(?:/(\d{4}))?', content)
-        if date_match:
-            d = int(date_match.group(1))
-            m = int(date_match.group(2))
-            y = int(date_match.group(3)) if date_match.group(3) else ref_dt.year
-            try:
-                target_date = datetime(y, m, d).date()
-                has_explicit_date = True
-            except Exception:
-                pass
-        else:
-            # Check day of week: thứ Sáu, thứ Bảy...
+        date_matches = list(re.finditer(r'(\d{1,2})/(\d{1,2})(?:/(\d{4}))?', content))
+        if date_matches:
+            best_match = None
+            for match in date_matches:
+                start_idx = max(0, match.start() - 30)
+                end_idx = min(len(content), match.end() + 30)
+                context_window = content[start_idx:end_idx].lower()
+                
+                # Check if this date is cancelled or joke
+                if re.search(r'(còn hiệu lực|duy nhất|mốc mới|chính thức là)', context_window):
+                    pass
+                elif re.search(r'(chính thức\s*hủy|đã\s*hủy|bị\s*hủy|\bhủy\b|không còn|đừng tin|không có hiệu lực|(?:nhắn|báo|ghi)\s*nhầm|năm\s*2023)', context_window):
+                    continue
+                
+                best_match = match
+                if event_type == "DEADLINE" and re.search(r'(hạn|nộp|deadline|chốt|đóng form|về)', context_window):
+                    break
+                elif event_type == "MEETING" and re.search(r'(họp|meet|thực hành|chữa|seminar)', context_window):
+                    break
+                    
+            if best_match:
+                d = int(best_match.group(1))
+                m = int(best_match.group(2))
+                y = int(best_match.group(3)) if best_match.group(3) else ref_dt.year
+                try:
+                    target_date = datetime(y, m, d).date()
+                    has_explicit_date = True
+                except Exception:
+                    pass
+        
+        if not has_explicit_date:
             dow_map = {
                 "thứ hai": 0, "thứ ba": 1, "thứ tư": 2, "thứ năm": 3,
-                "thứ sáu": 4, "thứ bảy": 5, "chủ nhật": 6
+                "thứ sáu": 4, "thứ bảy": 5, "chủ nhật": 6,
+                "thứ 2": 0, "thứ 3": 1, "thứ 4": 2, "thứ 5": 3,
+                "thứ 6": 4, "thứ 7": 5, "cn": 6
             }
             for dow_name, dow_val in dow_map.items():
                 if dow_name in content_lower:
                     days_ahead = (dow_val - ref_dt.weekday()) % 7
-                    if days_ahead == 0 and ("tuần sau" in content_lower or ref_dt.hour >= hour):
+                    if days_ahead == 0 and (ref_dt.hour >= hour or "tuần sau" in content_lower):
                         days_ahead = 7
+                    elif "tuần sau" in content_lower:
+                        days_ahead += 7
                     target_date = ref_dt.date() + timedelta(days=days_ahead)
                     has_explicit_date = True
                     break
@@ -320,6 +452,9 @@ def extract_with_fallback(ai_input: AIInput) -> AIOutput:
             quiz_num = quiz_match.group(1)
             subtitle = re.search(rf'quiz\s*{quiz_num}\s*[·:\-–]\s*(.+?)(?:\n|$)', content_lower)
             title = f"Quiz {quiz_num}" + (f" · {subtitle.group(1).strip().title()}" if subtitle else "")
+        elif re.search(r'\bhackathon\b.*?\b(?:checkpoint|cp)\s*(\d+)', content_lower):
+            m = re.search(r'\bhackathon\b.*?\b(?:checkpoint|cp)\s*(\d+)', content_lower)
+            title = f"Hackathon CP{m.group(1)}"
         elif checkpoint_match:
             cp_num = checkpoint_match.group(1)
             title = f"Checkpoint {cp_num}" + (" · Hackathon" if hackathon_match else "")
