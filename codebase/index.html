@@ -72,12 +72,14 @@
           </div>
         </header>
 
-        <!-- Quick Demo bar updated with notification scenarios -->
+        <!-- Quick Demo bar: 4 Kịch bản cốt lõi + 1 kịch bản phụ -->
         <section class="quick-demo-bar" aria-label="Kịch bản thử nghiệm nhanh">
-          <span class="quick-label">⚡ THỬ NHANH:</span>
-          <button type="button" class="quick-chip success" data-quick="meeting-event">🤝 Lịch họp khẩn (GV)</button>
-          <button type="button" class="quick-chip danger" data-quick="urgent-extension">🚨 Gia hạn Lab 2 (GV)</button>
-          <button type="button" class="quick-chip idle" data-quick="student-lab-chat">👥 Thảo luận Lab (Bot im lặng)</button>
+          <span class="quick-label">⚡ DEMO 4 TRƯỜNG HỢP:</span>
+          <button type="button" class="quick-chip danger" data-quick="auto-publish" title="[1] Auto-publish: GV thông báo rõ ràng -> Cập nhật lịch ngay">🟢 [1] Auto-publish (GV)</button>
+          <button type="button" class="quick-chip warning" data-quick="needs-review" title="[2] Cần duyệt: GV thông báo mơ hồ thiếu giờ -> Chờ TA xác nhận (HAX G10)">🟡 [2] Cần duyệt (Mơ hồ)</button>
+          <button type="button" class="quick-chip idle" data-quick="reject-rumor" title="[3] Từ chối: Sinh viên tung tin đồn -> Bị chặn tại Whitelist Gate">🔴 [3] Từ chối (Tin đồn SV)</button>
+          <button type="button" class="quick-chip review" data-quick="report-correction" title="[4] Báo sai: Học viên báo lỗi -> Chuyển trạng thái xác minh (HAX G9)">🟠 [4] Báo sai (Học viên)</button>
+          <button type="button" class="quick-chip success" data-quick="meeting-event" title="Lịch họp trực tuyến Google Meet">🤝 Lịch họp khẩn</button>
         </section>
 
         <section class="discord-feed-wrap">
@@ -258,6 +260,29 @@
         <div class="modal-actions">
           <button class="secondary-button" type="button" data-close="correctionDialog">Huỷ</button>
           <button class="primary-button" type="submit">Gửi admin xác minh</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Modal TA Bổ sung mốc giờ cho thông báo mơ hồ (HAX G10) -->
+    <dialog id="supplementDialog" class="modal">
+      <form id="supplementForm" class="modal-card" method="dialog">
+        <div class="modal-header">
+          <div><span class="eyebrow">TA REVIEW · HAX G10</span><h2>Xác nhận & Bổ sung mốc giờ</h2></div>
+          <button class="close-button" type="button" data-close="supplementDialog" aria-label="Đóng">×</button>
+        </div>
+        <p class="modal-copy">Thông báo từ Giảng viên thiếu giờ nộp bài cụ thể. Trợ giảng (TA) bổ sung mốc giờ để bot chính thức công bố lên Bảng tin.</p>
+        <input type="hidden" id="suppTopicKey" name="topic_key" value="" />
+        <input type="hidden" id="suppSourceMsgId" name="source_msg_id" value="" />
+        <div class="admin-grid">
+          <label>Tên bài tập<input id="suppTitle" name="title" required value="Assignment 1 · LLM Application" /></label>
+          <label>Hạn nộp (Ngày)<input id="suppDate" name="date" type="date" required value="2026-09-18" /></label>
+          <label>Hạn nộp (Giờ)<input id="suppTime" name="time" type="time" required value="23:59" /></label>
+          <label>Hình thức / Link nộp<input id="suppLink" name="link" required value="https://forms.gle/assignment1-submit" /></label>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" data-close="supplementDialog">Huỷ</button>
+          <button class="primary-button" type="submit">Xác nhận & Công bố lên Lịch chung</button>
         </div>
       </form>
     </dialog>

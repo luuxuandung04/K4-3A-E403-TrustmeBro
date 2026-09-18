@@ -683,6 +683,15 @@ a:hover {
   background: #4e5058;
   color: #ffffff;
 }
+.quick-chip.review {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+  border-color: rgba(249, 115, 22, 0.35);
+}
+.quick-chip.review:hover {
+  background: #ea580c;
+  color: #ffffff;
+}
 
 
 /* Chat Feed Wrapper */

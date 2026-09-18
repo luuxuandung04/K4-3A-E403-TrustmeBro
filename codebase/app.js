@@ -491,8 +491,10 @@ const activeChannelDesc = document.querySelector("#activeChannelDesc");
 
 const detailDialog = document.querySelector("#detailDialog");
 const adminDialog = document.querySelector("#adminDialog");
-const reviewDialog = document.querySelector("#reviewDialog");
 const correctionDialog = document.querySelector("#correctionDialog");
+const supplementDialog = document.querySelector("#supplementDialog");
+const supplementForm = document.querySelector("#supplementForm");
+let activeReviewDeadlineId = null;
 const dataDialog = document.querySelector("#dataDialog");
 const toast = document.querySelector("#toast");
 
@@ -608,19 +610,20 @@ function deduplicateEventList(items) {
 
 function renderDigestSingleItem(item) {
   const isMeeting = item.type === "MEETING" || (item.title && item.title.toLowerCase().includes("họp"));
+  const isUnderReview = item.status === "UNDER_REVIEW" || item.is_under_review;
   const rawCh = item.source_channel || item.source || "announcements";
   const chName = extractChannelName(rawCh);
   const srcMsgId = item.source_message_id || item.source_msg_id || "";
   const authorName = item.author_name || "Giảng viên";
 
-  const tagClass = isMeeting ? "blue" : (item.is_extension ? "red" : (item.title && item.title.toLowerCase().includes("quiz") ? "blue" : "purple"));
-  const timeText = isMeeting ? `🤝 Họp lúc ${item.due_time || item.time}` : (item.is_extension ? `🚨 Gia hạn: ${item.due_time || item.time}` : `⏳ Hạn: ${item.due_time || item.time}`);
+  const tagClass = isUnderReview ? "yellow" : (isMeeting ? "blue" : (item.is_extension ? "red" : (item.title && item.title.toLowerCase().includes("quiz") ? "blue" : "purple")));
+  const timeText = isUnderReview ? `⚠️ ĐANG XÁC MINH (Chờ TA)` : (isMeeting ? `🤝 Họp lúc ${item.due_time || item.time}` : (item.is_extension ? `🚨 Gia hạn: ${item.due_time || item.time}` : `⏳ Hạn: ${item.due_time || item.time}`));
   const meetLink = item.meetLink || null;
   const subLink = item.submission_link || null;
   const formatText = item.format || (isMeeting ? "Google Meet trực tuyến" : "Nộp bài trực tuyến");
 
   return `
-    <div class="digest-item ${isMeeting ? "meeting" : (item.is_extension ? "urgent" : "quiz")}">
+    <div class="digest-item ${isMeeting ? "meeting" : (item.is_extension ? "urgent" : "quiz")} ${isUnderReview ? "under-review" : ""}" ${isUnderReview ? 'style="border-color:#f59e0b;background:rgba(245,158,11,0.07);"' : ''}>
       <div class="item-main">
         <div class="item-title-row">
           <strong>${escapeHtml(item.title)}</strong>
@@ -630,6 +633,7 @@ function renderDigestSingleItem(item) {
           <span>Thời gian: <b>${escapeHtml(item.due_time || item.time)}</b></span>
           <span>Nguồn: <b>#${escapeHtml(chName)} (${escapeHtml(authorName)})</b></span>
           <span>Hình thức: <b>${escapeHtml(formatText)}</b></span>
+          ${isUnderReview && item.review_issue ? `<span style="color:#f59e0b;font-weight:700;">Lý do báo lỗi: ${escapeHtml(item.review_issue)}</span>` : ""}
         </div>
       </div>
       <div class="item-actions">
@@ -847,7 +851,7 @@ function renderMessageItem(msg) {
         <div class="embed-actions">
           ${msg.embed.link ? `<a class="embed-btn-link" href="${msg.embed.link}" target="_blank">🔗 Mở Form Nộp</a>` : ""}
           <button type="button" class="channel-jump-btn" data-jump-channel="${escapeHtml(embedSourceCh)}" data-jump-msg="${escapeHtml(embedMsgId)}" style="padding:4px 10px;font-size:11px;">💬 Xem tin gốc #${escapeHtml(embedSourceCh)} ↗</button>
-          <button type="button" class="embed-btn-report" data-action="report">⚠️ Báo sai / Tag TA</button>
+          ${msg.needsReviewAction ? `<button type="button" class="embed-btn-supplement" data-action="supplement-vague" data-title="${escapeHtml(msg.vagueTitle || 'Assignment 1 · LLM Application')}" data-topic="${escapeHtml(msg.topicKey || '')}" data-msg-id="${escapeHtml(msg.sourceMsgId || '')}" style="background:#f59e0b;color:#000;font-weight:700;padding:4px 10px;border-radius:4px;border:none;cursor:pointer;margin-left:4px;">✏️ TA Bổ sung mốc giờ</button>` : `<button type="button" class="embed-btn-report" data-action="report">⚠️ Báo sai / Tag TA</button>`}
         </div>
       </div>`;
   }
@@ -868,7 +872,7 @@ function renderMessageItem(msg) {
     </article>`;
 }
 
-function renderChannelFeed(channelId) {
+function renderChannelFeed(channelId, autoScroll = true) {
   let msgs = [];
   let welcomeIcon = "#";
   let welcomeTitle = "";
@@ -903,7 +907,9 @@ function renderChannelFeed(channelId) {
   messageFeed.innerHTML = html;
 
   updateComposerLockState();
-  scrollFeedToLatest("auto");
+  if (autoScroll) {
+    scrollFeedToLatest("auto");
+  }
 }
 
 function updateComposerPlaceholder() {
@@ -922,7 +928,7 @@ function updateComposerPlaceholder() {
   }
 }
 
-function switchChannel(channelId) {
+function switchChannel(channelId, autoScroll = true) {
   if (!channelsInfo[channelId]) return;
   activeChannel = channelId;
 
@@ -932,7 +938,7 @@ function switchChannel(channelId) {
     // On-demand sync: cập nhật tức thì nếu có thông báo thường mới từ backend
     fetchAndSyncDigestFromBackend().then((hasNew) => {
       if (hasNew && activeChannel === "deadline-hub") {
-        renderChannelFeed("deadline-hub");
+        renderChannelFeed("deadline-hub", autoScroll);
       }
     });
   }
@@ -948,7 +954,7 @@ function switchChannel(channelId) {
   if (activeChannelTitle) activeChannelTitle.textContent = info.title || channelId;
   if (activeChannelDesc) activeChannelDesc.textContent = info.desc || "";
 
-  renderChannelFeed(channelId);
+  renderChannelFeed(channelId, autoScroll);
 }
 
 // ============================================================================
@@ -994,6 +1000,16 @@ const pipelineScenarios = {
     importance: "BÌNH THƯỜNG",
     targetData: "Tra cứu không sửa DB",
     action: "Trả lời tại chỗ · KHÔNG BẮN TIN MỚI",
+    step: 3
+  },
+  needs_review: {
+    status: "NEEDS REVIEW",
+    tone: "review",
+    signal: "Thông báo mơ hồ · Thiếu giờ nộp cụ thể",
+    ruleGate: "HAX G10 (Scope services when in doubt)",
+    importance: "CHỜ XÁC NHẬN MỐC GIỜ",
+    targetData: "Giữ khỏi lịch chung",
+    action: "Gửi thẻ chờ duyệt -> TA bổ sung giờ",
     step: 3
   },
   correction: {
@@ -1347,17 +1363,49 @@ async function callBackendDiscordEvent(channelId, author, text, msgId) {
           persistMessageToBackend("deadline-hub", urgentMsg);
           showToast("🚨 Đã gửi THÔNG BÁO KHẨN CẤP sang #deadline-hub!");
           notifyHubUpdate();
+        } else if (doc.system?.needs_review || doc.system?.status === "NEEDS_REVIEW") {
+          // HAX G10: Scope services when in doubt - Thông báo thiếu giờ nộp cụ thể -> CẦN TA DUYỆT
+          markScenario("needs_review");
+          updatePipelineTrace(pipelineScenarios.needs_review);
+
+          const vagueMsg = {
+            id: `vague_${Date.now()}`,
+            channel: "deadline-hub",
+            author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+            type: "bot_embed",
+            sourceChannel: channelId,
+            sourceMsgId: msgId,
+            content: "⚠️ **CẦN TA XÁC NHẬN (HAX G10):** Phát hiện thông báo bài tập nhưng thiếu mốc giờ cụ thể!",
+            embed: {
+              badge: "🟡 CẦN TA XÁC NHẬN (HAX G10)",
+              badgeType: "yellow",
+              title: doc.content?.title || "Bài tập chưa có mốc giờ cụ thể",
+              deadline: "Chưa xác định giờ nộp cụ thể (Giữ khỏi Lịch chung)",
+              source: `Tin từ ${author.name} trong #${channelId}`,
+              sourceChannel: channelId,
+              sourceMsgId: msgId,
+              status: "NEEDS_REVIEW",
+              note: `Nội dung: "${text}". Theo nguyên tắc HAX G10, Bot không tự ý suy đoán giờ. Chờ TA bổ sung mốc giờ để công bố.`
+            },
+            needsReviewAction: true,
+            vagueTitle: doc.content?.title || "Assignment 1 · LLM Application",
+            topicKey: doc.system?.topic_key || `vague_${Date.now()}`,
+            sourceMsgId: msgId,
+            sourceChannel: channelId,
+            timestamp: now()
+          };
+          channelMessages["deadline-hub-bulletin"].push(vagueMsg);
+          channelMessages["deadline-hub"].push(vagueMsg);
+          persistMessageToBackend("deadline-hub", vagueMsg);
+          showToast("🟡 Thông báo mơ hồ: Đã chuyển sang hàng chờ CẦN TA XÁC NHẬN (HAX G10)!");
+          notifyHubUpdate();
+          return data;
         } else if (priority === "P1") {
           // P1: IMPORTANT NEW DEADLINE OR MEETING
           const isMeeting = doc.classification?.type === "MEETING";
           const parsedTime = isMeeting 
             ? (doc.schedule?.start_time ? formatIsoToDisplayTime(doc.schedule.start_time) : null)
             : (doc.schedule?.deadline ? formatIsoToDisplayTime(doc.schedule.deadline) : null);
-
-          if (!parsedTime) {
-            showToast(`ℹ️ Đã ghi nhận thông báo từ ${author.name} (Chưa có mốc thời gian cụ thể, không lập thẻ lịch hẹn).`);
-            return;
-          }
 
           const alertMsg = {
             id: `p1_${Date.now()}`,
@@ -1586,6 +1634,49 @@ function runLocalFallbackProcessing(channelId, author, text, msgId) {
     persistMessageToBackend("deadline-hub", urgentMsg);
     showToast("🚨 [Offline Mode] Đã gửi THÔNG BÁO KHẨN sang #deadline-hub!");
     notifyHubUpdate();
+  } else {
+    // Vague notification or assignment without explicit time (HAX G10)
+    const hasExplicitTime = /\b\d{1,2}:\d{2}\b/.test(text) || /\b\d{1,2}h\b/.test(text) || /\b\d{1,2}\s*(giờ|tiếng)\b/.test(text);
+    const isAssignmentSignal = lowerText.includes("assignment") || lowerText.includes("bài tập") || lowerText.includes("lab") || lowerText.includes("quiz") || lowerText.includes("thứ") || lowerText.includes("tuần sau");
+    if (!hasExplicitTime && isAssignmentSignal) {
+      markScenario("needs_review");
+      updatePipelineTrace(pipelineScenarios.needs_review);
+      const vagueId = `vague_${Date.now()}`;
+      const vagueTitle = extractEventTitle(text, false) || "Assignment 1 · LLM Application";
+      const vagueMsg = {
+        id: vagueId,
+        channel: "deadline-hub",
+        author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+        type: "bot_embed",
+        sourceChannel: channelId,
+        sourceMsgId: msgId,
+        content: "⚠️ **CẦN TA XÁC NHẬN (HAX G10):** Phát hiện thông báo bài tập nhưng thiếu mốc giờ cụ thể!",
+        embed: {
+          badge: "🟡 CẦN TA XÁC NHẬN (HAX G10)",
+          badgeType: "yellow",
+          title: vagueTitle,
+          deadline: "Chưa xác định giờ nộp cụ thể (Tạm giữ khỏi Lịch chung)",
+          source: `Tin từ ${author.name} trong #${channelId}`,
+          sourceChannel: channelId,
+          sourceMsgId: msgId,
+          status: "NEEDS_REVIEW",
+          note: `Nội dung: "${text}". Theo nguyên tắc HAX G10 (Scope services when in doubt), Bot không tự ý suy đoán giờ. Chờ TA bổ sung mốc giờ để công bố.`
+        },
+        needsReviewAction: true,
+        vagueTitle: vagueTitle,
+        topicKey: `vague_${Date.now()}`,
+        sourceMsgId: msgId,
+        sourceChannel: channelId,
+        timestamp: now()
+      };
+      if (!channelMessages["deadline-hub-bulletin"]) channelMessages["deadline-hub-bulletin"] = [];
+      if (!channelMessages["deadline-hub"]) channelMessages["deadline-hub"] = [];
+      channelMessages["deadline-hub-bulletin"].push(vagueMsg);
+      channelMessages["deadline-hub"].push(vagueMsg);
+      persistMessageToBackend("deadline-hub", vagueMsg);
+      showToast("🟡 [Offline Mode] Thông báo mơ hồ: Đã chuyển sang hàng chờ CẦN TA XÁC NHẬN (HAX G10)!");
+      notifyHubUpdate();
+    }
   }
 }
 
@@ -1792,7 +1883,8 @@ function jumpToSourceMessage(rawChannel, rawMsgId, contextKw = "") {
   closeDialog(adminDialog);
   closeDialog(correctionDialog);
 
-  switchChannel(targetChannel);
+  // Switch channel without auto-scrolling to bottom to avoid competing smooth scrolls
+  switchChannel(targetChannel, false);
 
   setTimeout(() => {
     let el = null;
@@ -1812,18 +1904,18 @@ function jumpToSourceMessage(rawChannel, rawMsgId, contextKw = "") {
       const subKws = kw.split(/[:·\-\(\)]/).map(s => s.trim()).filter(s => s.length >= 3);
       for (const msgEl of allMsgs) {
         const text = msgEl.textContent.toLowerCase();
-        if (text.includes(kw) || subKws.some(k => text.includes(k.toLowerCase()))) {
+        if (text.includes(kw) || subKws.some(k => text.includes(k.toLowerCase())) || (kw.includes("quiz") && text.includes("quiz 1"))) {
           el = msgEl;
           break;
         }
       }
     }
 
-    // Fallback: newest non-bot message in this channel
+    // Fallback: first non-bot message in this channel
     if (!el) {
       const nonBotMsgs = document.querySelectorAll(`.discord-message:not(.bot-discord-message)`);
       if (nonBotMsgs.length > 0) {
-        el = nonBotMsgs[nonBotMsgs.length - 1];
+        el = nonBotMsgs[0];
       }
     }
 
@@ -1832,7 +1924,8 @@ function jumpToSourceMessage(rawChannel, rawMsgId, contextKw = "") {
       if (feed) {
         const feedRect = feed.getBoundingClientRect();
         const elRect = el.getBoundingClientRect();
-        const targetScrollTop = feed.scrollTop + (elRect.top - feedRect.top) - (feedRect.height / 2) + (elRect.height / 2);
+        const relativeTop = elRect.top - feedRect.top;
+        const targetScrollTop = feed.scrollTop + relativeTop - (feed.clientHeight / 2) + (elRect.height / 2);
         feed.scrollTo({ top: Math.max(0, targetScrollTop), behavior: "smooth" });
       } else {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1846,12 +1939,13 @@ function jumpToSourceMessage(rawChannel, rawMsgId, contextKw = "") {
       scrollFeedToLatest("smooth");
       showToast(`📍 Đã chuyển sang kênh #${targetChannel}`);
     }
-  }, 120);
+  }, 100);
 }
 
 function openDeadlineDetail(id) {
   const item = deadlines.find((d) => d.id === id) || deadlines.find(d => getCanonicalEventKey(d) === id);
   if (!item) return;
+  activeReviewDeadlineId = item.id;
   const dStr = item.due_date || item.date || "";
   const tStr = item.due_time || item.time || "";
 
@@ -1917,27 +2011,344 @@ document.addEventListener("click", (event) => {
   const quickBtn = event.target.closest("[data-quick]");
   if (quickBtn) {
     const quickType = quickBtn.dataset.quick;
-    if (quickType === "meeting-event") {
+    if (quickType === "auto-publish" || quickType === "urgent-extension") {
       personaSelect.value = "teacher_hoang";
       personaSelect.dispatchEvent(new Event("change"));
+
+      const msgText = "Thông báo khẩn cấp lớp 3A: Do sự cố quyền truy cập form nộp bài, Giảng viên gia hạn khẩn cấp thêm 2 tiếng cho Lab 2 đến 02:00 sáng mai (18/09/2026)! Form nộp: https://forms.gle/lab2-submit-k4";
+      const msgId = `msg_ann_auto_${Date.now()}`;
+
+      const teacherMsg = {
+        id: msgId,
+        channel: "announcements",
+        author: { name: "Thầy Hoàng", role: "Giảng viên", avatar: "TH", type: "teacher" },
+        content: msgText,
+        timestamp: now(),
+        type: "official"
+      };
+      if (!channelMessages["announcements"]) channelMessages["announcements"] = [];
+      channelMessages["announcements"].push(teacherMsg);
+
+      // Cập nhật ngay hạn chót Lab 2
+      const lab2 = deadlines.find(d => d.assignment_code === "lab-2" || d.id === "lab-2" || (d.title && d.title.toLowerCase().includes("lab 2")));
+      if (lab2) {
+        lab2.due_date = "2026-09-18";
+        lab2.due_time = "02:00";
+        lab2.time = "02:00 (18/09)";
+        lab2.iso_deadline = "2026-09-18T02:00:00+07:00";
+        lab2.is_extension = true;
+        lab2.status = "ACTIVE";
+        lab2.source_message_id = msgId;
+        lab2.submission_link = "https://forms.gle/lab2-submit-k4";
+        lab2.quote = msgText;
+      }
+
+      // Bắn thẻ thông báo khẩn cấp vào #deadline-hub
+      const urgentMsg = {
+        id: `alert_${Date.now()}`,
+        channel: "deadline-hub",
+        author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+        type: "urgent_alert",
+        alertType: "deadline",
+        alertTitle: "🚨 THÔNG BÁO KHẨN: Gia hạn Lab 2 đến 02:00 (18/09)",
+        content: `Thông báo từ Thầy Hoàng: Do sự cố quyền truy cập form nộp bài, Giảng viên gia hạn khẩn cấp thêm 2 tiếng cho Lab 2 đến 02:00 sáng mai (18/09/2026)!`,
+        newDeadline: "02:00 · 18/09/2026",
+        formLink: "https://forms.gle/lab2-submit-k4",
+        author_name: "Thầy Hoàng",
+        source: "#announcements",
+        sourceChannel: "announcements",
+        sourceMsgId: msgId,
+        timestamp: now()
+      };
+      if (!channelMessages["deadline-hub-bulletin"]) channelMessages["deadline-hub-bulletin"] = [];
+      if (!channelMessages["deadline-hub"]) channelMessages["deadline-hub"] = [];
+      channelMessages["deadline-hub-bulletin"].push(urgentMsg);
+      channelMessages["deadline-hub"].push(urgentMsg);
+      repostWeeklyDigestAtBottom();
+
+      // Cập nhật Decision Trace
+      updatePipelineTrace({
+        status: "AUTO-PUBLISHED · P0",
+        tone: "rejected",
+        signal: "Gia hạn khẩn cấp Lab 2 -> 02:00 sáng mai",
+        ruleGate: "PASS (Role Giảng viên + Rõ ràng)",
+        importance: "KHẨN CẤP / ĐỘT NGỘT",
+        targetData: "data/deadlines.json (Lab 2: 02:00)",
+        action: "Tự động cập nhật lịch chung & bắn thẻ khẩn sang #deadline-hub",
+        step: 4
+      });
+      markScenario("urgent");
+
+      // Đồng bộ background
+      persistMessageToBackend("announcements", teacherMsg);
+      persistMessageToBackend("deadline-hub", urgentMsg);
+      if (lab2) persistDeadlineToBackend(lab2);
+      callBackendDiscordEvent("announcements", personas.teacher_hoang, msgText, msgId);
+
+      // Hiển thị ở #announcements trước, sau đó chuyển sang #deadline-hub
       switchChannel("announcements");
-      processNewMessage("announcements", "teacher_hoang", "@everyone Chào các bạn, ngày mai chúng ta có lịch họp online lúc 20:00 để chốt tiến độ dự án AI nhé. Link Google Meet: https://meet.google.com/abc-defg-hij");
+      showToast("🟢 [1. Auto-publish] Giảng viên thông báo rõ ràng → Tự động cập nhật lịch chung & chuyển sang #deadline-hub!");
       window.setTimeout(() => {
         switchChannel("deadline-hub");
-      }, 500);
-    } else if (quickType === "urgent-extension") {
+      }, 700);
+    } else if (quickType === "needs-review") {
       personaSelect.value = "teacher_hoang";
       personaSelect.dispatchEvent(new Event("change"));
+
+      const vagueText = "📢 Thông báo lớp 3A: Các bạn chuẩn bị hoàn thành bài tập Assignment 1 - LLM Application trước thứ Sáu này nhé, link form nộp sẽ mở sớm.";
+      const msgId = `msg_ann_vague_${Date.now()}`;
+
+      const teacherMsg = {
+        id: msgId,
+        channel: "announcements",
+        author: { name: "Thầy Hoàng", role: "Giảng viên", avatar: "TH", type: "teacher" },
+        content: vagueText,
+        timestamp: now(),
+        type: "official"
+      };
+      if (!channelMessages["announcements"]) channelMessages["announcements"] = [];
+      channelMessages["announcements"].push(teacherMsg);
+
+      // Cơ chế HAX G10: Thông báo thiếu mốc giờ cụ thể -> Giữ khỏi lịch chung, gửi thẻ Cần TA duyệt
+      const vagueEmbedMsg = {
+        id: `vague_${Date.now()}`,
+        channel: "deadline-hub",
+        author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+        type: "bot_embed",
+        sourceChannel: "announcements",
+        sourceMsgId: msgId,
+        content: "⚠️ **CẦN TA XÁC NHẬN (HAX G10):** Phát hiện thông báo bài tập nhưng thiếu mốc giờ cụ thể!",
+        embed: {
+          badge: "🟡 CẦN TA XÁC NHẬN (HAX G10)",
+          badgeType: "yellow",
+          title: "Assignment 1 · LLM Application",
+          deadline: "Chưa xác định giờ nộp cụ thể (Tạm giữ khỏi Lịch chung)",
+          source: "Tin từ Thầy Hoàng trong #announcements",
+          sourceChannel: "announcements",
+          sourceMsgId: msgId,
+          status: "NEEDS_REVIEW",
+          note: "Nội dung: “...chuẩn bị hoàn thành bài tập Assignment 1 trước thứ Sáu này nhé...”. Theo nguyên tắc HAX G10 (Scope services when in doubt), Bot không tự ý suy đoán giờ. Chờ TA bổ sung mốc giờ để công bố."
+        },
+        needsReviewAction: true,
+        vagueTitle: "Assignment 1 · LLM Application",
+        topicKey: "assignment-1",
+        sourceMsgId: msgId,
+        sourceChannel: "announcements",
+        timestamp: now()
+      };
+      if (!channelMessages["deadline-hub-bulletin"]) channelMessages["deadline-hub-bulletin"] = [];
+      if (!channelMessages["deadline-hub"]) channelMessages["deadline-hub"] = [];
+      channelMessages["deadline-hub-bulletin"].push(vagueEmbedMsg);
+      channelMessages["deadline-hub"].push(vagueEmbedMsg);
+      repostWeeklyDigestAtBottom();
+
+      // Cập nhật Decision Trace
+      updatePipelineTrace({
+        status: "NEEDS REVIEW (HAX G10)",
+        tone: "review",
+        signal: "Thông báo mơ hồ · Thiếu giờ nộp cụ thể",
+        ruleGate: "HAX G10 (Scope services when in doubt)",
+        importance: "CHỜ XÁC NHẬN MỐC GIỜ",
+        targetData: "Tạm giữ khỏi lịch chung",
+        action: "Gửi thẻ chờ duyệt -> TA bấm [✏️ TA Bổ sung mốc giờ] để công bố",
+        step: 3
+      });
+      markScenario("needs_review");
+
+      // Đồng bộ background
+      persistMessageToBackend("announcements", teacherMsg);
+      persistMessageToBackend("deadline-hub", vagueEmbedMsg);
+      callBackendDiscordEvent("announcements", personas.teacher_hoang, vagueText, msgId);
+
       switchChannel("announcements");
-      processNewMessage("announcements", "teacher_hoang", "Thông báo khẩn cấp lớp 3A: Do sự cố quyền truy cập form nộp bài, Giảng viên gia hạn khẩn cấp thêm 2 tiếng cho Lab 2 đến 02:00 sáng mai (18/09/2026)! Form nộp: https://forms.gle/lab2-submit-k4");
+      showToast("🟡 [2. Cần duyệt] Thông báo mơ hồ thiếu giờ → Đã tạo thẻ chờ TA duyệt trong #deadline-hub!");
       window.setTimeout(() => {
         switchChannel("deadline-hub");
-      }, 500);
-    } else if (quickType === "student-lab-chat") {
+      }, 700);
+    } else if (quickType === "reject-rumor" || quickType === "student-lab-chat") {
       personaSelect.value = "student_lananh";
       personaSelect.dispatchEvent(new Event("change"));
+
+      const studentText = "Mọi người ơi nghe nói bài Capstone được hoãn sang Chủ nhật tuần sau đúng không nhỉ?";
+      const msgId = `msg_student_${Date.now()}`;
+
+      const studentMsg = {
+        id: msgId,
+        channel: "lab-assignments",
+        author: { name: "Lan Anh", role: "Lớp 3A", avatar: "LA", type: "student" },
+        content: studentText,
+        timestamp: now(),
+        type: "chat"
+      };
+      if (!channelMessages["lab-assignments"]) channelMessages["lab-assignments"] = [];
+      channelMessages["lab-assignments"].push(studentMsg);
+      persistMessageToBackend("lab-assignments", studentMsg);
+
       switchChannel("lab-assignments");
-      processNewMessage("lab-assignments", "student_lananh", "Mọi người cho mình hỏi câu 3 bài Lab 2 chạy Few-shot có cần xuất file log riêng không?");
+
+      // Cập nhật Decision Trace cho thấy Gate Blocked
+      updatePipelineTrace({
+        status: "REJECTED (GATE BLOCKED)",
+        tone: "idle",
+        signal: "Tin đồn hoãn bài từ học viên Lan Anh",
+        ruleGate: "BLOCKED (Role 'student' không thuộc Whitelist)",
+        importance: "KHÔNG ĐỦ THẨM QUYỀN",
+        targetData: "Chặn tại Gate · Không ghi DB",
+        action: "Bot giữ im lặng (Silent Observer) · Tuyệt đối không đưa lên Lịch",
+        step: 1
+      });
+      markScenario("normal");
+
+      showToast("🔴 [3. Từ chối] Tin đồn từ sinh viên bị chặn tại Whitelist Gate → Bot giữ im lặng, không đưa lên Bảng tin!");
+    } else if (quickType === "report-correction") {
+      personaSelect.value = "student_lananh";
+      personaSelect.dispatchEvent(new Event("change"));
+
+      const quiz1 = deadlines.find(d => d.assignment_code === "quiz-1" || d.id === "quiz-1" || (d.title && d.title.toLowerCase().includes("quiz")));
+      if (quiz1) {
+        quiz1.is_under_review = true;
+        quiz1.status = "UNDER_REVIEW";
+        quiz1.review_issue = "Học viên báo sai giờ làm bài (21:00)";
+        activeReviewDeadlineId = quiz1.id;
+      }
+
+      const reportMsg = {
+        id: `report_${Date.now()}`,
+        channel: "deadline-hub",
+        author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+        type: "bot_embed",
+        sourceChannel: "quiz-updates",
+        sourceMsgId: "msg_quiz_01",
+        content: "⚠️ **BÁO SAI & ĐANG XÁC MINH (HAX G9):** Học viên Lan Anh báo cáo sai sót về deadline Quiz 1!",
+        embed: {
+          badge: "🟠 ĐANG XÁC MINH (CHỜ TA XỬ LÝ)",
+          badgeType: "yellow",
+          title: "Quiz 1 · Transformer Architecture & Attention",
+          deadline: "21:00 (19/09) [Có phản ánh cần đối soát]",
+          source: "Báo cáo từ Lan Anh · Kênh #quiz-updates",
+          sourceChannel: "quiz-updates",
+          sourceMsgId: "msg_quiz_01",
+          status: "UNDER_REVIEW",
+          note: "Lý do: Sai ngày hoặc giờ. Bot không tự xóa hay sửa ngày giờ gốc mà gắn cờ [ĐANG XÁC MINH] và chuyển ca trực cho TA giải quyết (HAX G9)."
+        },
+        timestamp: now()
+      };
+      if (!channelMessages["deadline-hub-bulletin"]) channelMessages["deadline-hub-bulletin"] = [];
+      if (!channelMessages["deadline-hub"]) channelMessages["deadline-hub"] = [];
+      channelMessages["deadline-hub-bulletin"].push(reportMsg);
+      channelMessages["deadline-hub"].push(reportMsg);
+      repostWeeklyDigestAtBottom();
+
+      switchChannel("deadline-hub");
+
+      updatePipelineTrace({
+        status: "HUMAN REVIEW (HAX G9)",
+        tone: "review",
+        signal: "Học viên báo sai mốc giờ Quiz 1",
+        ruleGate: "HAX G9 (Feedback & Error Recovery)",
+        importance: "ĐANG XÁC MINH",
+        targetData: "Ghi nhận trạng thái UNDER_REVIEW",
+        action: "Giữ nguyên bản cũ · Gắn thẻ cảnh báo · Chuyển TA Tuấn xử lý",
+        step: 4
+      });
+      markScenario("correction");
+
+      persistMessageToBackend("deadline-hub", reportMsg);
+      showToast("🟠 [4. Báo sai & Xác minh] Học viên báo lỗi Quiz 1 → Đã chuyển trạng thái [ĐANG XÁC MINH] và gửi TA giải quyết!");
+    } else if (quickType === "meeting-event") {
+      personaSelect.value = "teacher_hoang";
+      personaSelect.dispatchEvent(new Event("change"));
+
+      const meetText = "@everyone Chào các bạn, ngày mai chúng ta có lịch họp online lúc 20:00 để chốt tiến độ dự án AI nhé. Link Google Meet: https://meet.google.com/abc-defg-hij";
+      const msgId = `msg_ann_meet_${Date.now()}`;
+
+      const teacherMsg = {
+        id: msgId,
+        channel: "announcements",
+        author: { name: "Thầy Hoàng", role: "Giảng viên", avatar: "TH", type: "teacher" },
+        content: meetText,
+        timestamp: now(),
+        type: "official"
+      };
+      if (!channelMessages["announcements"]) channelMessages["announcements"] = [];
+      channelMessages["announcements"].push(teacherMsg);
+
+      const existingMeet = deadlines.find(d => d.type === "MEETING" || (d.title && d.title.includes("họp")));
+      if (existingMeet) {
+        existingMeet.due_time = "20:00";
+        existingMeet.due_date = "2026-09-18";
+        existingMeet.time = "20:00 (18/09)";
+        existingMeet.iso_deadline = "2026-09-18T20:00:00+07:00";
+        existingMeet.meetLink = "https://meet.google.com/abc-defg-hij";
+        existingMeet.source_message_id = msgId;
+      } else {
+        deadlines.unshift({
+          id: `meeting_${Date.now()}`,
+          assignment_code: `meeting_${Date.now()}`,
+          title: "Họp chốt tiến độ dự án AI",
+          type: "MEETING",
+          due_date: "2026-09-18",
+          due_time: "20:00",
+          time: "20:00 (18/09)",
+          iso_deadline: "2026-09-18T20:00:00+07:00",
+          meetLink: "https://meet.google.com/abc-defg-hij",
+          format: "Google Meet trực tuyến",
+          source_channel: "#announcements",
+          source: "#announcements",
+          sourceLabel: "Thầy Hoàng (Giảng viên)",
+          source_message_id: msgId,
+          status: "ACTIVE",
+          is_important: true,
+          confidence: 98,
+          quote: meetText,
+          author_name: "Thầy Hoàng",
+          author_role: "Giảng viên"
+        });
+      }
+
+      const meetMsg = {
+        id: `meeting_alert_${Date.now()}`,
+        channel: "deadline-hub",
+        author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+        type: "urgent_alert",
+        alertType: "meeting",
+        alertTitle: "🤝 LỊCH HỌP MỚI / THAY ĐỔI ĐỘT XUẤT",
+        content: `Thông báo từ Thầy Hoàng: ${meetText}`,
+        newDeadline: "20:00 · 18/09/2026",
+        meetLink: "https://meet.google.com/abc-defg-hij",
+        author_name: "Thầy Hoàng",
+        source: "#announcements",
+        sourceChannel: "announcements",
+        sourceMsgId: msgId,
+        timestamp: now()
+      };
+      if (!channelMessages["deadline-hub-bulletin"]) channelMessages["deadline-hub-bulletin"] = [];
+      if (!channelMessages["deadline-hub"]) channelMessages["deadline-hub"] = [];
+      channelMessages["deadline-hub-bulletin"].push(meetMsg);
+      channelMessages["deadline-hub"].push(meetMsg);
+      repostWeeklyDigestAtBottom();
+
+      updatePipelineTrace({
+        status: "NEW MEETING · P1",
+        tone: "found",
+        signal: "Lịch họp online 20:00 ngày mai",
+        ruleGate: "PASS (Role Giảng viên + Link Meet)",
+        importance: "QUAN TRỌNG",
+        targetData: "data/deadlines.json (MEETING)",
+        action: "Tự động lập lịch & bắn thẻ họp sang #deadline-hub",
+        step: 4
+      });
+      markScenario("urgent");
+
+      persistMessageToBackend("announcements", teacherMsg);
+      persistMessageToBackend("deadline-hub", meetMsg);
+      callBackendDiscordEvent("announcements", personas.teacher_hoang, meetText, msgId);
+
+      switchChannel("announcements");
+      showToast("🤝 [Lịch họp khẩn] Giảng viên thông báo họp → Đã lên lịch họp Google Meet & chuyển sang #deadline-hub!");
+      window.setTimeout(() => {
+        switchChannel("deadline-hub");
+      }, 700);
     }
     return;
   }
@@ -1963,9 +2374,22 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const action = event.target.closest("[data-action]")?.dataset.action;
+  const actionBtn = event.target.closest("[data-action]");
+  const action = actionBtn?.dataset.action;
   if (action === "admin-add") openDialog(adminDialog);
-  else if (action === "report") { closeDialog(detailDialog); openDialog(correctionDialog); }
+  else if (action === "report") {
+    if (!activeReviewDeadlineId) activeReviewDeadlineId = "quiz-1";
+    closeDialog(detailDialog);
+    openDialog(correctionDialog);
+  } else if (action === "supplement-vague") {
+    const vTitle = actionBtn.dataset.title || "Assignment 1 · LLM Application";
+    const vTopic = actionBtn.dataset.topic || "assignment-1";
+    const vMsgId = actionBtn.dataset.msgId || "";
+    if (document.querySelector("#suppTitle")) document.querySelector("#suppTitle").value = vTitle;
+    if (document.querySelector("#suppTopicKey")) document.querySelector("#suppTopicKey").value = vTopic;
+    if (document.querySelector("#suppSourceMsgId")) document.querySelector("#suppSourceMsgId").value = vMsgId;
+    openDialog(supplementDialog);
+  }
 
   const closeTarget = event.target.closest("[data-close]");
   if (closeTarget) closeDialog(document.querySelector(`#${closeTarget.dataset.close}`));
@@ -2028,7 +2452,81 @@ document.querySelector("#correctionForm").addEventListener("submit", (event) => 
   closeDialog(correctionDialog);
   markScenario("correction");
   updatePipelineTrace(pipelineScenarios.correction);
-  showToast(`Đã ghi nhận báo sai: “${issue}”. Chuyển cờ cho TA trực ca.`);
+
+  const targetId = activeReviewDeadlineId || "quiz-1";
+  const targetDl = deadlines.find(d => d.id === targetId || d.assignment_code === targetId || (d.title && d.title.toLowerCase().includes("quiz")));
+  if (targetDl) {
+    targetDl.is_under_review = true;
+    targetDl.status = "UNDER_REVIEW";
+    targetDl.review_issue = issue;
+  }
+  repostWeeklyDigestAtBottom();
+  renderChannelFeed(activeChannel);
+  showToast(`⚠️ Đã ghi nhận báo sai: “${issue}”. Thẻ deadline đã chuyển sang [ĐANG XÁC MINH - CHỜ TA] (HAX G9).`);
+});
+
+document.querySelector("#supplementForm")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const fd = new FormData(event.currentTarget);
+  const title = String(fd.get("title")).trim();
+  const date = String(fd.get("date")).trim();
+  const time = String(fd.get("time")).trim();
+  const link = String(fd.get("link")).trim();
+  const topicKey = String(fd.get("topic_key")) || `assg_${Date.now()}`;
+  const msgId = String(fd.get("source_msg_id")) || "";
+
+  const newDl = {
+    id: topicKey,
+    assignment_code: topicKey,
+    title: title,
+    due_date: date,
+    due_time: time,
+    time: `${time} (${date})`,
+    iso_deadline: `${date}T${time}:00+07:00`,
+    submission_link: link,
+    format: "Nộp file qua Form trực tuyến",
+    source_channel: "#announcements",
+    source: "#announcements",
+    sourceLabel: "TA đã bổ sung mốc giờ",
+    source_message_id: msgId,
+    status: "ACTIVE",
+    is_important: true,
+    confidence: 100,
+    quote: `Đã được TA xác nhận và bổ sung mốc giờ: ${time} ngày ${date}`,
+    author_name: "TA Tuấn",
+    author_role: "Trợ giảng"
+  };
+
+  deadlines.unshift(newDl);
+  persistDeadlineToBackend(newDl);
+  closeDialog(supplementDialog);
+
+  // Gửi thông báo xác nhận sang #deadline-hub
+  const confirmedMsg = {
+    id: `confirmed_${Date.now()}`,
+    channel: "deadline-hub",
+    author: { name: "Deadline Bot", role: "APP", avatar: "D", type: "bot" },
+    type: "bot_embed",
+    content: `✅ **TA ĐÃ XÁC NHẬN & CÔNG BỐ:** ${title} đã có mốc giờ nộp chính thức!`,
+    embed: {
+      badge: "🟢 ĐÃ ĐƯỢC TA XÁC NHẬN & CÔNG BỐ",
+      badgeType: "green",
+      title: title,
+      deadline: `${time} · ${date}`,
+      link: link,
+      source: "Được TA Tuấn xác nhận",
+      status: "ACTIVE",
+      note: "Đã chính thức đưa vào Bảng Tin Tuần."
+    },
+    timestamp: now()
+  };
+  channelMessages["deadline-hub-bulletin"].push(confirmedMsg);
+  channelMessages["deadline-hub"].push(confirmedMsg);
+  persistMessageToBackend("deadline-hub", confirmedMsg);
+
+  repostWeeklyDigestAtBottom();
+  renderChannelFeed(activeChannel);
+  showToast(`✅ TA đã xác nhận mốc giờ cho “${title}”! Đã công bố lên Bảng tin.`);
 });
 
 document.querySelector("#openLogViewerButton")?.addEventListener("click", openLogViewer);
