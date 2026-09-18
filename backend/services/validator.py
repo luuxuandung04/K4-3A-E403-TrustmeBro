@@ -12,8 +12,8 @@ from backend.db.json_store import get_store
 _TOPIC_PATTERNS = [
     (r'\blab\s*(\d+)', lambda m: f"lab-{m.group(1)}"),
     (r'\bquiz\s*(\d+)', lambda m: f"quiz-{m.group(1)}"),
-    (r'\bcheckpoint\s*(\d+)', lambda m: f"checkpoint-{m.group(1)}"),
     (r'\bhackathon\b.*?\b(?:cp|checkpoint)\s*(\d+)', lambda m: f"hackathon-cp{m.group(1)}"),
+    (r'\bcheckpoint\s*(\d+)', lambda m: f"checkpoint-{m.group(1)}"),
     (r'\bcapstone\b', lambda _: "capstone"),
     (r'\bproject\b', lambda _: "project"),
     (r'\bseminar\b', lambda _: "seminar"),
@@ -22,11 +22,20 @@ _TOPIC_PATTERNS = [
 
 def get_assignment_topic(title: str, summary: str = "") -> Optional[str]:
     """Dynamic topic extraction — matches Lab N, Quiz N, Checkpoint N, etc."""
-    text = f"{title} {summary}".lower()
-    for pattern, builder in _TOPIC_PATTERNS:
-        m = re.search(pattern, text, re.IGNORECASE)
-        if m:
-            return builder(m)
+    # Check title first to avoid cross-boundary false matches
+    if title:
+        text_title = title.strip().lower()
+        for pattern, builder in _TOPIC_PATTERNS:
+            m = re.search(pattern, text_title, re.IGNORECASE)
+            if m:
+                return builder(m)
+    # Fallback to summary if title has no match
+    if summary:
+        text_summary = summary.strip().lower()
+        for pattern, builder in _TOPIC_PATTERNS:
+            m = re.search(pattern, text_summary, re.IGNORECASE)
+            if m:
+                return builder(m)
     return None
 
 def determine_notification_priority(ai_output: AIOutput, content_text: str) -> str:

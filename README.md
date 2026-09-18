@@ -191,7 +191,7 @@ flowchart TD
 - [x] **CP3 (16:00 · 17/9):** Video 30s AI chạy thật + Bảng đo lượt 1 trên Golden Set 20 case qua NVIDIA NIM: **19 PASS / 1 FAIL = 95%, 0 case bịa deadline**.
 - [x] **CP4 (21:00 · 17/9):** Chốt spec.md hoàn chỉnh + Khóa Quality Bar **≥85%, 0% bịa/sai deadline**; công khai phần chưa hoàn thành.
 - [x] **Hoàn thiện Backend & Frontend Pipeline (Đêm 17/9):** FastAPI kết nối trực tiếp Discord Web Client, Zero-Hallucination Regex Guardrails, Authority Whitelist Gate, Quota Logging, 1-Click Demo Reset, 21/21 unit tests PASS.
-- [ ] **CP5 (13:00 · 18/9):** `demo-slides.pdf` 6 trang + Video demo dự phòng + Nhật ký `validation/user_test_log.md`.
+- [x] **CP5 (13:00 · 18/9):** `demo-slides.pdf` 6 trang + Video demo dự phòng + Nhật ký `validation/user_test_log.md`.
 - [ ] **CP6 (17:30 · 18/9):** Thuyết trình Vòng cụm E403 (6 phút) & Chung kết (10 phút: 7' pitch + 3' Q&A Thẻ giám khảo).
 
 ---
