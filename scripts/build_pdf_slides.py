@@ -417,4 +417,5 @@ def build_pdf(filename='demo-slides.pdf'):
     print(f'Successfully built {filename}')
 
 if __name__ == '__main__':
-    build_pdf('demo-slides.pdf')
+    root_path = Path(__file__).resolve().parent.parent / 'demo-slides.pdf'
+    build_pdf(str(root_path))
