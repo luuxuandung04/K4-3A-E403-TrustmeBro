@@ -153,6 +153,11 @@ def validate_and_create_document(ai_input: AIInput, ai_output: AIOutput) -> Tupl
     if conflict_detected:
         priority = "P0"  # Conflicts are always urgent
 
+    # Check for vague deadline (Needs TA Review - HAX G10)
+    is_vague_deadline = (ai_output.classification.type == "DEADLINE" and not ai_output.schedule.deadline)
+    doc_status = "NEEDS_REVIEW" if is_vague_deadline else "PROCESSED"
+    review_reason = "Thông báo thiếu mốc giờ nộp cụ thể, cần TA xác nhận trước khi công bố (HAX G10)." if is_vague_deadline else None
+
     # Build EventDocument
     doc = EventDocument(
         id=doc_id,
@@ -170,11 +175,13 @@ def validate_and_create_document(ai_input: AIInput, ai_output: AIOutput) -> Tupl
         schedule=ai_output.schedule,
         target=ai_output.target,
         system=EventSystem(
-            status="PROCESSED",
+            status=doc_status,
             created_at=now_str,
             updated_at=now_str,
             conflict_detected=conflict_detected,
             conflict_note=conflict_note,
+            needs_review=is_vague_deadline,
+            review_reason=review_reason,
             notification_priority=priority,
             topic_key=curr_topic
         )

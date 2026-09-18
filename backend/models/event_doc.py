@@ -18,6 +18,8 @@ class EventSystem(BaseModel):
     updated_at: str
     conflict_detected: bool = False
     conflict_note: Optional[str] = None
+    needs_review: bool = False
+    review_reason: Optional[str] = None
     notification_priority: str = "P2"  # P0=khẩn cấp, P1=quan trọng, P2=thường, P3=tham khảo
     notification_sent: bool = False
     notification_sent_at: Optional[str] = None
