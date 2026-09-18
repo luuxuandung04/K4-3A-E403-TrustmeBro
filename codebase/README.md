@@ -1,38 +1,60 @@
-# Deadline Hub + Calendar — Clickable Prototype CP2
+# Discord Deadline & Logistics Guard — Web Client Interface
 
-Đây là **Working Mock** chạy trực tiếp trên trình duyệt và mô phỏng đúng một Discord App/Bot. Thành viên dùng slash command trong `#deadline-hub`; bot trả calendar dưới dạng message tương tác ngay trong Discord, không mở dashboard hay lịch bên ngoài. Toàn trang web và vùng hội thoại có hai thanh cuộn độc lập; chat có nút quay về tin mới nhất, còn cuối trang có phần giải thích pipeline.
+Giao diện người dùng mô phỏng Discord Web Client hoàn chỉnh của hệ thống **Discord Deadline & Logistics Guard**, kết nối trực tiếp với backend **FastAPI** qua RESTful API để xử lý thông tin thông báo, nhận diện deadline bằng AI và quản lý lịch biểu tập trung.
 
-## Chạy prototype
+---
 
-Từ thư mục gốc repo, chạy `node codebase/server.js`, sau đó mở `http://127.0.0.1:4173/`. Không cần cài package hoặc API key.
+## 🌟 Các Tính năng Nổi bật trên Giao diện
 
-Tin nhắn thường, slash command và phản hồi bot mới được lưu theo channel trong `codebase/data/mes.json`. Server giữ tối đa 300 tin gần nhất cho mỗi channel. Đây là file persistence dành cho demo cục bộ; bản production nên thay bằng database có transaction và phân quyền.
+1. **Kênh tập trung `#deadline-hub`**:
+   - Tự động hiển thị Lịch tương tác (Interactive Calendar) ngay trong tin nhắn của Bot.
+   - Các Slash command trực tiếp:
+     - `/deadline tong-hop`: Tổng hợp toàn bộ lịch thi, nộp bài, seminar từ các kênh nguồn chính thức.
+     - `/deadline xem`: Tra cứu hạn nộp cụ thể theo môn/bài tập.
+     - `/deadline them`: Form mở nhanh dành cho Admin/TA tạo deadline bổ sung.
+     - `/deadline duyet`: Xem danh sách các thông báo cần con người rà soát.
 
-## Kịch bản demo 45–60 giây
+2. **Thanh thông báo 7 ngày (7-Day Urgency Banner)**:
+   - Tự động quét và liệt kê các sự kiện/deadline trong vòng 7 ngày tới.
+   - Nút **`↗ Chi tiết`**: Mở modal trích dẫn căn cứ gốc, người công bố, độ tin cậy và link form nộp bài.
+   - Nhấp vào nguồn hoặc link tin gốc: **Tự động chuyển kênh và cuộn (smooth scroll) trực tiếp đến tin nhắn gốc** trong kênh chat.
 
-1. Chạy **`/deadline tong-hop`** để mô phỏng bot đọc 4 nguồn và trả calendar trong message.
-2. Chuyển tháng hoặc bấm **Chi tiết** để xem thông báo gốc và confidence.
-3. Ở bảng **System Logic**, chạy lần lượt `Auto-publish`, `Admin review` và `Reject`.
-4. Chạy `Correction`, chọn một loại lỗi rồi gửi; admin giữ quyền quyết định cuối.
-5. Thử **`/deadline them`** để xem phương án nhập tay chỉ dành cho ngoại lệ.
-5. Khi bộ đếm đạt `4/4`, bốn đường trải nghiệm bắt buộc đã được kiểm tra.
+3. **Gửi tin nhắn & Pipeline xử lý thời gian thực**:
+   - Người dùng có thể chọn Persona (Thầy Hoàng, Cô Minh Anh, TA Tuấn, hoặc Học viên Lan Anh) để gửi thông báo vào các kênh whitelist (`#announcements`, `#lab-assignments`, `#quiz-updates`, `#hackathon`, `#lich-hoc`).
+   - Tin nhắn được gửi lên backend FastAPI:
+     - **Authority Filter**: Kiểm duyệt vai trò người gửi (chỉ Giảng viên/TA/BTC mới được ban hành deadline).
+     - **Semantic Extractor**: Gemini AI phân tích ngữ nghĩa, bóc tách thời gian, loại sự kiện (`MEETING`, `DEADLINE`, `CLASS`, `ANNOUNCEMENT`).
+     - **Zero-Hallucination Guard**: Nghiêm cấm tự bịa mốc giờ nếu thông báo không ghi giờ rõ ràng.
+     - **Broadcast / Event Store**: Đồng bộ ngay lập tức vào cơ sở dữ liệu và hiển thị lên `#deadline-hub`.
 
-## Phạm vi chạy thật và giả lập
+4. **Nút `[🧹 Dọn rác / Reset Demo]` (1-Click Demo Reset)**:
+   - Nằm ngay trên thanh điều hướng trên cùng (Top Navigation Bar).
+   - Cho phép khôi phục toàn bộ kênh chat, sự kiện và deadline về trạng thái ban đầu sạch sẽ, sẵn sàng cho việc kiểm thử nhiều lần hoặc thuyết trình demo trực tiếp.
 
-| Thành phần | CP2 |
-|---|---|
-| Slash command, chat scroll, Discord calendar message, modal nguồn/admin, báo sai | Chạy thật bằng HTML/CSS/JavaScript |
-| Lưu/nạp lịch sử chat theo channel | Chạy thật qua `server.js` và `data/mes.json` |
-| Trạng thái PUBLISHED / NEEDS REVIEW / NO GROUNDING / HUMAN REVIEW | Rule-based mô phỏng, bấm được end-to-end |
-| Nội dung thông báo, confidence, kênh nguồn, TA, thời gian đồng bộ | Dữ liệu mock cố định |
-| Extractor AI, Discord Gateway/API, Components V2, permission, database/audit | Chưa kết nối; thuộc CP3 trở đi |
+5. **Giám sát Pipeline Log & Cảnh báo Hạn mức AI**:
+   - Card nhật ký thời gian thực (Live Pipeline Log) bên phải màn hình hiển thị từng bước xử lý: Gate -> Extractor -> Validator -> Store.
+   - Tự động hiển thị Toast cảnh báo màu vàng khi Gemini API chạm giới hạn lượt gọi (429 ResourceExhausted) và chuyển mượt mà sang chế độ Fallback an toàn.
 
-Các nút mở nguồn không điều hướng tới form nộp thật nhằm tránh người thử vô tình dùng dữ liệu mẫu.
+---
 
-## Tiêu chí nghiệm thu
+## 🚀 Cách Khởi Chạy
 
-- [x] Có một bot, slash command và calendar tương tác nằm trong Discord message.
-- [x] Bốn đường trải nghiệm có điểm bắt đầu, quyết định AI và điểm kết thúc rõ ràng.
-- [x] Mức tự động hóa `Augment + Conditional`: bot chỉ công bố khi đủ nguồn; ngoại lệ chuyển người duyệt.
-- [x] HAX G1, G2, G9, G10, G11 có vị trí cụ thể và tương tác nhìn thấy được.
-- [x] Có thể dùng chuột, bàn phím và màn hình nhỏ; không yêu cầu dữ liệu nhạy cảm.
+### Cách 1: Chạy cùng Backend FastAPI (Khuyến nghị để trải nghiệm đầy đủ)
+1. Khởi động backend server:
+   ```powershell
+   # Chạy file batch hoặc lệnh uvicorn từ thư mục gốc
+   .\start_server.bat
+   ```
+2. Mở trình duyệt truy cập: **`http://127.0.0.1:8000`** (FastAPI tự động mount thư mục `codebase/` làm trang chủ).
+
+### Cách 2: Chạy độc lập (Static Preview)
+- Mở trực tiếp tệp `codebase/index.html` bằng trình duyệt (Chrome/Edge/Firefox).
+- Giao diện vẫn hoạt động trơn tru với dữ liệu mẫu tĩnh.
+
+---
+
+## 🎨 Cấu trúc Thư mục
+
+- `index.html`: Cấu trúc DOM mô phỏng giao diện Discord (Sidebar kênh, Khung chat, Thanh thông báo, Modal chi tiết, Form nhập liệu).
+- `style.css`: Bộ stylesheet hoàn chỉnh mô phỏng Discord Dark Theme (màu sắc, typography, responsive mobile/desktop).
+- `app.js`: Toàn bộ logic tương tác phía client (gọi API FastAPI, quản lý state kênh chat, bộ lọc thời gian, xử lý slash commands).

@@ -140,13 +140,16 @@ flowchart TD
 * **Chiều chất lượng định nghĩa:**
   1. *Factuality (Độ chính xác nguồn):* 100% deadline và link nộp phải khớp tuyệt đối với thông báo chính thức, không sai lệch dù chỉ 1 phút.
   2. *Refusal Accuracy (Độ chuẩn xác từ chối):* 100% case không có nguồn hoặc ngoài thẩm quyền phải được từ chối an toàn, không bịa đặt (Zero Hallucination).
-* **Cấu trúc Golden Set ($\ge 20$ cases trong `eval/golden_set.json`):**
-  - 6 cases Happy path chuẩn.
-  - 5 cases Nguồn sự thật (có mâu thuẫn gia hạn / không có thông báo).
-  - 4 cases Mơ hồ / thiếu thông tin.
-  - 3 cases Ngoài thẩm quyền.
-  - 2 cases Đặc thù Domain lớp 3A/3B.
-* **Quality Bar (Chốt từ CP4):** **"Đạt khi $\ge 85\%$ test cases vượt qua bộ Golden Set, và $0\%$ case bịa đặt deadline sai."**
+* **Lượt đo CP3 Run-01 (AI thật qua NVIDIA NIM API, model `deepseek-ai/deepseek-v4-flash-0731`): 19 PASS / 1 FAIL, đạt 95%, 0 case bịa/sai deadline** — case FAIL duy nhất: `GS-013` (model trả `REJECTED` thay vì `IGNORED_OUT_OF_SCOPE` vì không có nguồn chính thức trong kênh được phép). Kết quả được giữ nguyên, kể cả case FAIL.
+* **Cấu trúc Golden Set CP4 (35 cases + 2 seed ngữ cảnh trong `eval/golden_set.json`, đo bằng `eval/run_eval.py`):**
+  - 6 Bẫy căn cứ & Số nhiễu · 6 Mơ hồ & Quy đổi thời gian · 5 Ngoài thẩm quyền & Lọc nhiễu · 6 Đặc thù miền & Phạm vi lớp · 7 Adversarial Zero-Hallucination · 5 Cập nhật đè & Chuỗi đa tin nhắn.
+* **Lượt đo CP4 Stress Test (AI thật Gemini qua `eval/run_eval.py`, báo cáo tại `eval/run_results.md`): 6/35 PASS = 17.14%, 5 ca bịa/sai deadline (ID 04, 08, 18, 26, 35) → CHƯA ĐẠT Quality Bar.** Kết quả được công khai đầy đủ, không chỉnh sửa để làm đẹp số liệu.
+* **Remediation cho 5 ca CP4 chưa đạt (kế hoạch thực hiện trước CP5):**
+  1. Ca 04, 18, 26 — Meeting bị trích thành DEADLINE (lấy giờ nhắc/huỷ/record thành hạn nộp): siết prompt extractor phân biệt `start_time` của buổi họp với `deadline` nộp bài; validator đang ép `deadline = None` cho MEETING là đúng hướng, cần thêm kiểm tra giờ họp trùng giờ nhắc.
+  2. Ca 08 — `11:59 PM` bị đổi thành `11:59` (AM/PM): bổ sung quy tắc chuẩn hoá giờ 12h trong prompt và test hồi quy.
+  3. Ca 35 — mốc cũ (30/09) được chọn thay vì mốc dời sớm (28/09): siết quy tắc "mốc cuối cùng còn hiệu lực" thắng mốc bị huỷ trong cùng tin nhắn.
+* **Lượt đo CP5 sau Remediation (AI thật Gemini 3.6 Flash + Zero-Hallucination Fallback qua `eval/run_eval.py`, báo cáo tại `eval/run_results.md`): 31/35 PASS = 88.57%, 0 ca bịa/sai deadline (0.00%) → ĐÃ ĐẠT Quality Bar (≥85%, 0% bịa).**
+* **Quality Bar (Chốt từ CP4 — KHÔNG ĐƯỢC SỬA):** **"Đạt khi $\ge 85\%$ test cases vượt qua bộ Golden Set, và $0\%$ case bịa đặt deadline sai."** Không nâng bar lên 95% chỉ vì lượt CP3 đạt 95%. Không sửa Golden Set hoặc kết quả lượt chạy để làm đẹp số liệu.
 
 ---
 
@@ -159,6 +162,26 @@ flowchart TD
   - **Tạ Quang Dũng (`2A202602588`):** Data · QA · Golden Set (Thu thập log, Test cases, Eval script).
 * **Willing Users:** Tối thiểu 2 bạn học viên ngoài nhóm trong phòng E403 xác nhận thử nghiệm tại CP5.
 
+### Tình trạng triển khai & Tính năng đã hoàn thành
+
+- Giao diện Discord trong `codebase/` đã kết nối API thời gian thực với backend FastAPI (`backend/main.py`).
+- AI thật (Gemini 2.5 Flash) đã được tích hợp trực tiếp vào pipeline trích xuất sự kiện và deadline, đi kèm bộ lọc phân quyền nguồn (Authority Whitelist Gate) và chốt chặn chống bịa giờ (Zero-Hallucination Regex Guardrail).
+- Cơ chế Hybrid Fallback tự động bảo vệ hệ thống khi chạm giới hạn hạn mức API (429 Quota Exceeded), kèm cảnh báo trực quan trên UI và ghi nhật ký có cấu trúc vào `logs/pipeline.log`.
+- Cơ chế Dọn rác & Khôi phục dữ liệu Demo chuẩn (1-Click Demo Reset) được tích hợp trực tiếp trên Topbar giao diện và script CLI `scripts/reset_demo_data.py`.
+- Toàn bộ 21 kiểm thử tự động của backend (`pytest backend/tests/`) đạt 100% PASS.
+
+### Kế hoạch CP5 và CP6
+
+| Công việc | Người phụ trách | Đầu ra |
+|---|---|---|
+| Remediation 5 ca stress test CP4 chưa đạt | Tạ Quang Dũng, Lưu Xuân Dũng | Prompt/validator cập nhật + lượt đo lại đạt Quality Bar |
+| Thử nghiệm với ≥2 người ngoài nhóm | Nguyễn Duy Khánh | `validation/user_test_log.md` hoàn chỉnh |
+| Cập nhật prototype sau user test | Trương Thị Lan Anh | Thay đổi trong `codebase/` và changelog |
+| Hoàn thiện slide | Trương Thị Lan Anh, Lưu Xuân Dũng | `demo-slides.pdf` đúng 6 trang |
+| Quay video demo dự phòng | Lưu Xuân Dũng | Video chạy được khi mất mạng |
+| Kiểm tra eval và số liệu trình bày | Tạ Quang Dũng | Xác minh Run-01 (20 case, 95%) và lượt CP4 so với bar 85% |
+| Dry run và chuẩn bị Q&A | Cả nhóm | Đúng thời lượng; mỗi thành viên có phần trình bày |
+
 ---
 
 ## §9. Changelog
@@ -168,3 +191,7 @@ flowchart TD
 | 16/9 · 19:30 | v1.0 | Khởi tạo Spec Track B1, chốt Lát cắt 1 câu | Checkpoint 1 |
 | 16/9 · 20:00 | v1.1 | Cập nhật phân công vai trò mới, bổ sung số liệu khảo sát $N=21$ | Chuẩn bị Checkpoint 2 |
 | 16/9 · CP2 | v2.0 | Dựng lại Working Mock `#deadline-hub` + calendar với 4 luồng; chọn Augment + Conditional theo cost-of-error; chuẩn hóa HAX G1/G2/G9/G10/G11; ghi rõ phần mock/thật | Yêu cầu Checkpoint 2 và thay tính năng hỏi đáp bằng trải nghiệm theo dõi tập trung |
+| 17/9 · CP3 | v3.0 | Chạy AI thật trên 20 case: 19 PASS, 1 FAIL, đạt 95%, 0 case bịa deadline | NVIDIA NIM API, model DeepSeek |
+| 17/9 · CP4 | v4.0 | Chốt spec 9 phần và khóa Quality Bar ở ≥85%, 0% bịa deadline; công khai các phần chưa hoàn thành; stress test 35 case đạt 17.14% (CHƯA ĐẠT bar) kèm kế hoạch remediation | Hạn chốt spec CP4 |
+| 17/9 · Đêm | v4.1 | Hoàn thành Backend FastAPI kết nối Live Web Client, Authority Whitelist Gate, Zero-Hallucination Regex Guardrails, Cơ chế 1-Click Demo Reset, và bộ hướng dẫn cài đặt môi trường | Chuẩn bị nộp CP5 & Bàn giao hệ thống hoàn chỉnh |
+| 18/9 · CP5 | v5.0 | **(1) Xác thực người dùng (R6):** Thực hiện 5 phiên Mom Test với 5 người dùng ngoài nhóm (U1: Nguyễn Đức Minh, U2: Nguyễn Văn An, U3: Lê Thị Thảo, U4: Trần Hoàng Nam, U5: Vũ Minh Tuấn) ghi nhận tại `validation/user_testing_log.md`. **(2) Cải tiến sản phẩm dựa trên phản hồi:** (a) Tăng kích thước vùng bấm nút Chi tiết ($36\text{px}$) & thêm tooltip xem tin gốc; (b) Thêm Banner hướng dẫn tân binh ở đầu kênh `#deadline-hub`; (c) Bổ sung trường lịch sử thay đổi mốc giờ trong modal; (d) Lập luận giữ nguyên thiết kế tag vàng `[Lớp 3B]` (đưa filter lớp vào roadmap); (e) Lập luận giữ nguyên cơ chế Báo sai HAX G9 cho học viên (webhook alert riêng cho TA đưa vào roadmap). **(3) Remediation Golden Set:** Sửa AM/PM, tách biệt MEETING vs DEADLINE, xử lý mốc giờ bị hủy, đạt 31/35 PASS (88.57%), 0% bịa deadline → VƯỢT Quality Bar. **(4) Bộ hồ sơ:** Hoàn thiện `demo-slides.pdf` (6 trang), `demo-video-script.md` (3 phút), 4 file `reflection/`. | Phản hồi kiểm chứng thực tế từ 5 học viên ngoài nhóm theo chuẩn The Mom Test (5 nhịp) và đợt remediation 5 ca stress test CP4 chưa đạt (ID: 04, 08, 18, 26, 35). |
